@@ -1,0 +1,117 @@
+name: Validate AI Governance Solution Source
+
+on:
+  push:
+    branches: [ main, dev ]
+    paths:
+      - 'Solutions/Microsoft Sentinel - AI Governance Solution/**'
+      - 'scripts/Test-AIGovernanceSource.ps1'
+      - '.github/workflows/validate-ai-governance-solution.yml'
+  pull_request:
+    branches: [ main, dev ]
+    paths:
+      - 'Solutions/Microsoft Sentinel - AI Governance Solution/**'
+      - 'scripts/Test-AIGovernanceSource.ps1'
+      - '.github/workflows/validate-ai-governance-solution.yml'
+  workflow_dispatch:
+    inputs:
+      strict:
+        description: 'Run validator in strict mode (warnings treated as failures)'
+        required: false
+        default: 'false'
+        type: choice
+        options: [ 'false', 'true' ]
+      package_path:
+        description: 'Optional: path to generated package directory for Check 12 (mainTemplate.json + createUiDefinition.json). Leave blank to skip package validation.'
+        required: false
+        default: ''
+        type: string
+
+# Prevent concurrent validation runs on the same branch
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-source:
+    name: Source Validation (Windows)
+    # Windows runner required: solution targets Azure/Windows tooling;
+    # PowerShell path conventions in validator are Windows-native.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # No third-party tool installs in this job.
+      # The validator uses only native PowerShell and git (pre-installed on all GitHub runners).
+      # See FUTURE-PACKAGE-GENERATION below for the planned package-generation gate.
+
+      - name: Run source validator
+        id: validate
+        shell: pwsh
+        run: |
+          $scriptArgs = @{
+            SolutionRoot = "${{ github.workspace }}\Solutions\Microsoft Sentinel - AI Governance Solution"
+            RepoRoot     = "${{ github.workspace }}"
+          }
+          if ('${{ github.event.inputs.strict }}' -eq 'true') { $scriptArgs['Strict'] = $true }
+          if ('${{ github.event.inputs.package_path }}' -ne '') {
+            $scriptArgs['PackagePath'] = "${{ github.workspace }}\${{ github.event.inputs.package_path }}"
+          }
+
+          Write-Host "Running: scripts\Test-AIGovernanceSource.ps1"
+          & "${{ github.workspace }}\scripts\Test-AIGovernanceSource.ps1" @scriptArgs
+          $exitCode = $LASTEXITCODE
+          Write-Host "Validator exit code: $exitCode"
+          exit $exitCode
+
+      - name: Upload validator output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-failure-log
+          path: |
+            ${{ github.workspace }}\scripts\Test-AIGovernanceSource.ps1
+          retention-days: 7
+
+# ──────────────────────────────────────────────────────────────
+# PACKAGE GATE (Check 12) — How to run
+# ──────────────────────────────────────────────────────────────
+# Package validation (Check 12) verifies that mainTemplate.json and createUiDefinition.json
+# exist, parse correctly, and contain expected top-level ARM / UI-definition fields.
+# Generator exit code alone is NOT sufficient — content is verified independently.
+#
+# To trigger package validation in this workflow:
+#   1. Generate the package locally using createSolutionV3.ps1 (see FUTURE-PACKAGE-GENERATION).
+#   2. Commit the generated Package/ directory to a branch (or use workflow_dispatch).
+#   3. Run this workflow via workflow_dispatch with:
+#        package_path = "Solutions/Microsoft Sentinel - AI Governance Solution/Package/<version>"
+#
+# This avoids brittle network assumptions: the validator does not fetch or run createSolutionV3.ps1
+# in CI. Package generation is a developer-side step; CI validates the output.
+# ──────────────────────────────────────────────────────────────
+
+# ──────────────────────────────────────────────────────────────
+# FUTURE-PACKAGE-GENERATION (add when createSolutionV3.ps1 is available)
+# ──────────────────────────────────────────────────────────────
+# When the official Microsoft Sentinel package generation tool (createSolutionV3.ps1)
+# becomes available as a repo-local tool or via a documented official source, add:
+#
+#   - name: Generate solution package (Gate 1a)
+#     shell: pwsh
+#     run: |
+#       # Clone or reference createSolutionV3.ps1 from the official Azure/Azure-Sentinel repo
+#       # DO NOT use an unapproved third-party copy of this tool.
+#       # Reference: https://github.com/Azure/Azure-Sentinel/tree/master/Tools/Create-Azure-Sentinel-Solution
+#       & "path\to\createSolutionV3.ps1" -solutionName "Microsoft Sentinel - AI Governance Solution" ...
+#       if ($LASTEXITCODE -ne 0) { exit 1 }
+#       # Then invoke source validator with -PackagePath to verify generated output:
+#       & ".\scripts\Test-AIGovernanceSource.ps1" -PackagePath "Solutions\...\Package\<version>"
+#       if ($LASTEXITCODE -ne 0) { exit 1 }
+#
+# This step is intentionally omitted until the tool's official availability and
+# approved integration path are confirmed (see Gate 1a in .squad/decisions/inbox/).
+# Generator exit code alone is never sufficient — Test-AIGovernanceSource.ps1 -PackagePath
+# independently verifies the content of the generated package.
+# ──────────────────────────────────────────────────────────────

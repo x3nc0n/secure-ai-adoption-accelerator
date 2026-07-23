@@ -1,0 +1,725 @@
+{
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "version": "Notebook/1.0",
+  "isLocked": false,
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "items": [
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "crossComponentResources": [
+          "value::1"
+        ],
+        "parameters": [
+          {
+            "id": "9d82e3f4-1b6a-4c9d-8f12-5e7a3b5c4d9e",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "label": "Time Range",
+            "type": 4,
+            "description": "Time range filter for all log-based queries",
+            "isRequired": true,
+            "value": "P1D",
+            "typeSettings": {
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 43200000
+                },
+                {
+                  "durationMs": 86400000
+                },
+                {
+                  "durationMs": 172800000
+                },
+                {
+                  "durationMs": 604800000
+                },
+                {
+                  "durationMs": 1209600000
+                },
+                {
+                  "durationMs": 2592000000
+                }
+              ]
+            }
+          },
+          {
+            "id": "3c7e8f2a-4b96-4d1f-a082-9d5e2c4a7b3f",
+            "version": "KqlParameterItem/1.0",
+            "name": "Workspace",
+            "label": "Log Analytics Workspace",
+            "type": 5,
+            "description": "Target Sentinel workspace. No hard-coded tenant/subscription/workspace values.",
+            "isRequired": true,
+            "value": null,
+            "typeSettings": {
+              "resourceTypeFilter": {
+                "microsoft.operationalinsights/workspaces": true
+              },
+              "additionalResourceOptions": [],
+              "showDefault": false
+            }
+          },
+          {
+            "id": "7f3a9e2d-c847-4b1a-b5f0-3e8d9c7e2b4f",
+            "version": "KqlParameterItem/1.0",
+            "name": "ActiveTab",
+            "label": "Active Tab",
+            "type": 1,
+            "description": "Internal tab selector",
+            "isHiddenWhenLocked": true,
+            "value": "tab-executive"
+          },
+          {
+            "id": "2b4f7e3a-9c96-4d1f-b5c7-0d3e8a9f2b4c",
+            "version": "KqlParameterItem/1.0",
+            "name": "ModuleFilter",
+            "label": "Module",
+            "type": 2,
+            "description": "Filter by module (A–G) or show all",
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\": \"All\", \"label\": \"All Modules\"}, {\"value\": \"A\", \"label\": \"A \\u2014 Azure OpenAI / Foundry\"}, {\"value\": \"B\", \"label\": \"B \\u2014 Agent 365\"}, {\"value\": \"C\", \"label\": \"C \\u2014 M365 Copilot\"}, {\"value\": \"D\", \"label\": \"D \\u2014 Defender XDR\"}, {\"value\": \"E\", \"label\": \"E \\u2014 Azure General\"}, {\"value\": \"F\", \"label\": \"F \\u2014 Microsoft Purview\"}, {\"value\": \"G\", \"label\": \"G \\u2014 Security Copilot (Disabled)\"}]"
+          },
+          {
+            "id": "e8f3a7b2-4c96-4d1f-b9e7-3b0d8c5f2e7a",
+            "version": "KqlParameterItem/1.0",
+            "name": "ControlFilter",
+            "label": "Control ID",
+            "type": 2,
+            "description": "Filter by AIGS control ID",
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\": \"All\", \"label\": \"All Controls\"}, {\"value\": \"AIGS-CD001\", \"label\": \"AIGS-CD001 — Content Filter Policy Change (Module A)\"}, {\"value\": \"AIGS-CD005\", \"label\": \"AIGS-CD005 — AI Resource Diagnostics Changed (Module A)\"}, {\"value\": \"AIGS-PA001\", \"label\": \"AIGS-PA001 — Agent Missing DLP Guardrail (Module B)\"}, {\"value\": \"AIGS-CD002\", \"label\": \"AIGS-CD002 — Agent Config Drift (Module B)\"}, {\"value\": \"AIGS-CD003\", \"label\": \"AIGS-CD003 — Unauthorized Copilot Plugin (Module C)\"}, {\"value\": \"AIGS-CD004\", \"label\": \"AIGS-CD004 — Unsanctioned AI App (Module D)\"}, {\"value\": \"AIGS-AM001\", \"label\": \"AIGS-AM001 — Unauthorized Model Deployment (Module E)\"}, {\"value\": \"AIGS-AM002\", \"label\": \"AIGS-AM002 — Purview AI Hub Policy Violation (Module F)\"}, {\"value\": \"AIGS-RU001\", \"label\": \"AIGS-RU001 — Anomalous Security Copilot Usage (Module G)\"}]"
+          },
+          {
+            "id": "5c7e3b8f-4d96-4a1f-b3e7-8c5d0a9f2b7e",
+            "version": "KqlParameterItem/1.0",
+            "name": "MaturityFilter",
+            "label": "Maturity",
+            "type": 2,
+            "description": "Filter by module maturity level",
+            "isRequired": true,
+            "value": "All",
+            "typeSettings": {
+              "additionalResourceOptions": [],
+              "showDefault": false
+            },
+            "jsonData": "[{\"value\": \"All\", \"label\": \"All\"}, {\"value\": \"GA\", \"label\": \"GA\"}, {\"value\": \"Preview\", \"label\": \"Preview\"}, {\"value\": \"Disabled (default)\", \"label\": \"Disabled (default)\"}]"
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "globalParameters"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "## 🛡️ Microsoft Sentinel — AI Governance Solution\n**Version:** 0.1.0-preview | **Publisher:** x3nc0n | **Support:** GitHub Issues | **Tier:** Community\n\nGovernance observability across seven AI platform modules. Select a **persona tab** below. Use **Time Range**, **Workspace**, **Module**, **Control ID**, and **Maturity** filters.\n\n> ⚠️ **Batch 1:** Module A (Azure OpenAI/Foundry) and Module E (Azure General) are active. Modules B–G are **planned** and require additional connectors. Missing connectors surface as **Not Configured** — never as Compliant.",
+        "style": "info"
+      },
+      "name": "workbookTitle"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          {
+            "id": "tab-link-01",
+            "cellValue": "ActiveTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📊 Executive Summary",
+            "subTarget": "tab-executive",
+            "style": "link"
+          },
+          {
+            "id": "tab-link-02",
+            "cellValue": "ActiveTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🔍 SOC Operations",
+            "subTarget": "tab-soc",
+            "style": "link"
+          },
+          {
+            "id": "tab-link-03",
+            "cellValue": "ActiveTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🧺 Platform Health",
+            "subTarget": "tab-health",
+            "style": "link"
+          },
+          {
+            "id": "tab-link-04",
+            "cellValue": "ActiveTab",
+            "linkTarget": "parameter",
+            "linkLabel": "📋 Compliance Mapping",
+            "subTarget": "tab-compliance",
+            "style": "link"
+          },
+          {
+            "id": "tab-link-05",
+            "cellValue": "ActiveTab",
+            "linkTarget": "parameter",
+            "linkLabel": "🧩 Module Coverage",
+            "subTarget": "tab-modules",
+            "style": "link"
+          }
+        ]
+      },
+      "name": "tabNavigation"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "Group/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### 📊 Executive Summary — AI Governance Posture\n**Audience:** CISO / Security Director | **Batch:** 1 (July 2026) | **Solution:** Microsoft Sentinel — AI Governance Solution\n\nHigh-level posture, active incidents, module coverage, and framework alignment. All figures reflect the selected workspace and time range.\n\n> ⚠️ **Coverage note:** Figures reflect *deployed and connected* modules only. Modules without required connectors appear as **Not Configured** — never as Compliant. No compliance score is calculated; evidence status is stated explicitly per control.",
+              "style": "info"
+            },
+            "name": "exec-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let aigs_incidents = toscalar(\n    SecurityIncident\n    | where TimeGenerated > {TimeRange:start}\n    | where Title has_any ('AIGS','AI Governance','Content Filter','RAI Policy','Copilot','Agent Config')\n    | count\n);\nlet aigs_alerts = toscalar(\n    SecurityAlert\n    | where TimeGenerated > {TimeRange:start}\n    | where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\n    | count\n);\nprint\n    ['Active AIGS Incidents']    = aigs_incidents,\n    ['Active AIGS Alerts']       = aigs_alerts,\n    ['Modules Active (Batch 1)'] = 2,\n    ['Modules Planned']          = 5,\n    ['Controls Monitored']       = 9,\n    ['Frameworks Mapped']        = 2",
+              "size": 4,
+              "title": "AI Governance KPIs",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "tiles",
+              "noDataMessage": "KPI query failed. Verify workspace selection and that SecurityIncident / SecurityAlert tables are present.",
+              "noDataMessageStyle": 4,
+              "tileSettings": {
+                "showBorder": true,
+                "titleContent": {
+                  "columnMatch": ".*",
+                  "formatter": 1
+                },
+                "leftContent": {
+                  "columnMatch": ".*",
+                  "formatter": 12,
+                  "numberFormat": {
+                    "unit": 17,
+                    "options": {
+                      "style": "decimal"
+                    }
+                  }
+                }
+              }
+            },
+            "name": "exec-kpis"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "datatable(Module:string, Label:string, BatchStatus:string, ControlCount:int, Maturity:string)[\n    'A','Azure OpenAI / Foundry',   '\\U0001f7e2 Active — Reference Module', 2, 'GA',\n    'B','Agent 365',                '\\u25fb Planned — Connector Required',  2, 'Preview',\n    'C','M365 Copilot',             '\\u25fb Planned — Connector Required',  1, 'Preview',\n    'D','Defender XDR',             '\\u25fb Planned — Connector Required',  1, 'Preview',\n    'E','Azure General',            '\\U0001f7e2 Active',                    1, 'GA',\n    'F','Microsoft Purview',        '\\u26a0\\ufe0f Connector Installed — No AI Hub data', 1, 'Preview',\n    'G','Security Copilot',         '\\U0001f534 Disabled — opt-in required', 1, 'Preview'\n]\n| project Module, Label, Maturity, BatchStatus, ControlCount",
+              "size": 2,
+              "title": "Module Coverage Summary — Batch 1",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "Module coverage table unavailable.",
+              "noDataMessageStyle": 3
+            },
+            "name": "exec-coverage"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "SecurityAlert\n| where TimeGenerated > {TimeRange:start}\n| where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\n| summarize Count=count() by bin(TimeGenerated, 1d)\n| order by TimeGenerated asc",
+              "size": 2,
+              "title": "AIGS Alert Trend — Selected Time Range",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "timechart",
+              "noDataMessage": "No AIGS-tagged alerts in the selected time range. Expected when module connectors are not yet configured or no governance events occurred.",
+              "noDataMessageStyle": 3
+            },
+            "name": "exec-trend"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "#### Framework Alignment Summary\n\n| Framework | Controls Mapped | Domains / Functions |\n|-----------|-----------------|---------------------|\n| Microsoft Cloud Security Benchmark (MCSB) | 9 | NS, DP, IM, AM, IR |\n| NIST AI Risk Management Framework (AI RMF) | 9 | GOVERN, MAP, MANAGE, RESPOND |\n\n> Controls are solution-owned (`AIGS-*`) with many-to-many framework mappings. ISO/IEC 42001 and EU AI Act mappings can be added without modifying detection logic. See the **Compliance Mapping** tab for per-control detail.",
+              "style": "success"
+            },
+            "name": "exec-framework-note"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "ActiveTab",
+        "comparison": "isEqualTo",
+        "value": "tab-executive"
+      },
+      "name": "tab-executive"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "Group/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### 🔍 SOC Operations\n**Audience:** SOC Analyst / Incident Responder\n\nActive AIGS incidents and alerts, plus live query results for Module A (Azure OpenAI/Foundry) and Module E (Azure General) — the two modules with built-in data sources active in this batch.\n\n> Use **Control ID** and **Time Range** parameters to narrow results. Queries filter on AIGS control ID tags and governance-related keywords.",
+              "style": "info"
+            },
+            "name": "soc-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "SecurityIncident\n| where TimeGenerated > {TimeRange:start}\n| where Title has_any ('AIGS','AI Governance','Content Filter','RAI Policy',\n          'Azure OpenAI','Model Deployment','Agent Config','Copilot Plugin')\n| where '{ControlFilter}' == 'All'\n    or tostring(Labels) has '{ControlFilter}'\n    or Title has '{ControlFilter}'\n| project TimeGenerated, IncidentNumber, Title, Severity, Status,\n          Owner=tostring(Owner.assignedTo), Labels=tostring(Labels)\n| sort by TimeGenerated desc",
+              "size": 0,
+              "title": "Active AI Governance Incidents — [SecurityIncident]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No AI governance incidents found. Expected when Modules B–G connectors are not configured or no rules have fired.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-incidents"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "SecurityAlert\n| where TimeGenerated > {TimeRange:start}\n| where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\n| where '{ControlFilter}' == 'All' or AlertName has '{ControlFilter}'\n| project TimeGenerated, AlertName, AlertSeverity,\n          Description=substring(Description,0,200), Entities=tostring(Entities)\n| sort by TimeGenerated desc",
+              "size": 0,
+              "title": "Active AI Governance Alerts — [SecurityAlert]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No AI governance alerts in the selected time range.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-alerts"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Module A — Azure OpenAI / Foundry `GA` `AzureActivity (built-in)`\n\nRules deployed: **AIGS-CD001** (RAI Policy Modified) · **AIGS-CD005** (AI Resource Diagnostics Changed)\n\nHunts deployed: **AIGS-Hunt-AzureOpenAIRAIChanges** (Module A)\n\nASIM: `imAuditEvent — native` · Watchlists: `AIGS_ContentFilterPolicies`, `AIGS_ApprovedModels`\n\n> **AIGS-CD001** fires on `raiPolicies/write|delete` (content filter policy changes). **AIGS-CD005** fires on `diagnosticSettings/write|delete` on CognitiveServices resources (audit continuity). Hunt queries provide broader historical coverage — see hunt sections below. Model deployment events are covered by the Module E hunt (**AIGS-Hunt-AIModelDeploymentChanges**) which also surfaces Azure OpenAI/Foundry deployment activity.",
+              "style": "success"
+            },
+            "name": "soc-modA-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// CONTROL: AIGS-CD001  MODULE: A — Azure OpenAI / Foundry\n// ASIM: imAuditEvent — native  (AzureActivity maps natively to _Im_AuditEvent)\n// Detects ARM management-plane writes to Azure OpenAI RAI (content filter) policies.\n// Source: AzureActivity — built-in connector, no additional deployment required.\n// Watchlist: AIGS_ContentFilterPolicies (baseline authority for approved policy names)\nAzureActivity\n| where TimeGenerated > {TimeRange:start}\n| where OperationNameValue =~ 'Microsoft.CognitiveServices/accounts/raiPolicies/write'\n| project\n    TimeGenerated,\n    ResourceGroup,\n    Resource,\n    Caller,\n    CallerIpAddress,\n    OperationNameValue,\n    ActivityStatus,\n    ActivitySubstatus,\n    Properties=tostring(Properties)\n| sort by TimeGenerated desc",
+              "size": 0,
+              "title": "AIGS-CD001 — Content Filter Policy Changes [AzureActivity]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No content filter policy write operations detected. If Azure OpenAI resources exist, no policy changes occurred in the time range. Absence of events does NOT confirm compliant state — run the AIGS-CD005 hunt to assess posture gaps.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-cd001"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// CONTROL: AIGS-CD005  MODULE: A — Azure OpenAI / Foundry\n// ASIM: imAuditEvent — native  (AzureActivity maps natively to _Im_AuditEvent)\n// Detects successful write or delete of Microsoft.Insights/diagnosticSettings\n// on Microsoft.CognitiveServices resources (Azure OpenAI / Microsoft Foundry accounts).\n// A delete removes audit-log forwarding entirely (HIGH); a write may reduce logged categories (MEDIUM).\n// Source: AzureActivity — built-in connector, no additional deployment required.\n// Response: AIGS-Auto-001-RestoreDiagnostics (approval-gated restoration).\nlet DiagOps = dynamic([\n    'microsoft.insights/diagnosticsettings/write',\n    'microsoft.insights/diagnosticsettings/delete'\n]);\nAzureActivity\n| where TimeGenerated > {TimeRange:start}\n| where tolower(OperationNameValue) in (DiagOps)\n| where ActivityStatusValue =~ 'Success'\n| where tolower(_ResourceId) contains 'microsoft.cognitiveservices'\n| extend\n    AccountName   = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\n    SettingName   = tostring(extract(@'/diagnosticsettings/([^/]+)', 1, tolower(_ResourceId))),\n    OperationType = iff(tolower(OperationNameValue) has 'delete', 'Delete', 'Write')\n| extend SeverityIndicator = case(\n    OperationType == 'Delete', '🔴 HIGH — Diagnostic setting deleted; audit-log forwarding may be interrupted',\n    OperationType == 'Write',  '🟡 MEDIUM — Diagnostic setting written; validate log categories and destinations unchanged',\n    'INFO — Review required')\n| project\n    TimeGenerated,\n    SeverityIndicator,\n    OperationType,\n    OperationNameValue,\n    _ResourceId,\n    AccountName,\n    SettingName,\n    Caller,\n    CallerIpAddress,\n    SubscriptionId,\n    ResourceGroup,\n    ActivityStatusValue,\n    CorrelationId\n| sort by TimeGenerated desc",
+              "size": 0,
+              "title": "AIGS-CD005 — AI Resource Diagnostics Changed [AzureActivity]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No diagnostic-settings changes on CognitiveServices resources in the selected time range. Absence of events does NOT confirm compliant state — verify all AI resources have active diagnostic settings via Azure Portal.",
+              "noDataMessageStyle": 4
+            },
+            "name": "soc-cd005"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Module A — Hunt Queries `AzureActivity (built-in)`\n\nTwo hunt queries are deployed for Module A. Both use AzureActivity (no additional connector required). Hunts do not create alerts automatically — run on demand for investigation, baseline seeding, and compliance review.\n\n> Run the full hunt query files for watchlist-joined analysis with `AIGS_ContentFilterPolicies` and `AIGS_ApprovedModels`.",
+              "style": "info"
+            },
+            "name": "soc-hunt-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// HUNT: AIGS-Hunt-AzureOpenAIRAIChanges  MODULE: A — Azure OpenAI / Foundry\n// ASIM: imAuditEvent — native\n// Returns all raiPolicy write/delete events for historical investigation and AIGS-CD001 baseline seeding.\n// Workbook view: raw events. Run full hunt file for watchlist-joined analysis.\nlet RaiPolicyOps = dynamic([\n    'microsoft.cognitiveservices/accounts/raipolicies/write',\n    'microsoft.cognitiveservices/accounts/raipolicies/delete'\n]);\nAzureActivity\n| where TimeGenerated > {TimeRange:start}\n| where tolower(OperationNameValue) in (RaiPolicyOps)\n| extend\n    AccountName   = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\n    PolicyTarget  = tostring(extract(@'/raipolicies/([^/]+)', 1, tolower(_ResourceId))),\n    OperationType = iff(tolower(OperationNameValue) has 'delete', 'Delete', 'Write')\n| extend RiskSignal = case(\n    OperationType == 'Delete' and ActivityStatusValue =~ 'Success', '🔴 HIGH — Successful delete; validate policy still present',\n    OperationType == 'Delete',                                       '🟡 MEDIUM — Failed delete attempt; review caller intent',\n    OperationType == 'Write' and ActivityStatusValue =~ 'Success',  '🟡 MEDIUM — Successful write; validate policy values unchanged',\n    '🟢 LOW — Review')\n| project TimeGenerated, RiskSignal, OperationType, ActivityStatusValue,\n    AccountName, PolicyTarget, Caller, CallerIpAddress, SubscriptionId, ResourceGroup\n| order by TimeGenerated desc",
+              "size": 0,
+              "title": "AIGS-Hunt-AzureOpenAIRAIChanges — RAI Policy Change History [AzureActivity]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No RAI policy changes in the selected time range. Widen the range or confirm Azure OpenAI resources exist with AzureActivity diagnostic settings enabled.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-hunt-raichanges"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// HUNT: AIGS-Hunt-AIModelDeploymentChanges  MODULE: E — Azure General\n// ASIM: imAuditEvent — native\n// Returns successful CognitiveServices deployments/write events for investigation.\n// Workbook view: raw deployment events. Run full hunt file for watchlist-joined analysis.\n// Note: AIGS-AM001 analytic rule has not been authored — no automated alert fires.\n// Note: This hunt also surfaces Azure OpenAI/Foundry deployment activity (AzureActivity is shared).\nAzureActivity\n| where TimeGenerated > {TimeRange:start}\n| where tolower(OperationNameValue) == 'microsoft.cognitiveservices/accounts/deployments/write'\n| where ActivityStatusValue =~ 'Success'\n| extend\n    AccountName    = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\n    DeploymentName = tostring(extract(@'/deployments/([^/]+)', 1, tolower(_ResourceId)))\n| project TimeGenerated, AccountName, DeploymentName, Caller, CallerIpAddress,\n    OperationNameValue, ActivityStatusValue, SubscriptionId, ResourceGroup, _ResourceId, CorrelationId\n| order by TimeGenerated desc",
+              "size": 0,
+              "title": "AIGS-Hunt-AIModelDeploymentChanges — Model Deployment Events (Module E Hunt) [AzureActivity]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No AI model deployment events in the selected time range. If Azure OpenAI/Foundry resources exist, verify AzureActivity is ingesting CognitiveServices ARM events. Note: AIGS-AM001 analytic rule has not been authored — this is a hunt view only.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-hunt-deployments"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Module E — Azure General `GA` `AzureActivity (built-in)`\n\nHunt deployed: **AIGS-Hunt-AIModelDeploymentChanges** (Module E; also surfaces Azure OpenAI/Foundry deployment events — see hunt section above)\n\n⚠️ **AIGS-AM001 analytic rule has not been authored.** The query below provides a SOC view of model deployment events. No alert fires automatically until the rule is authored and deployed. Absence of events does NOT confirm compliant state.\n\nASIM: `imAuditEvent — native` · Watchlist: `AIGS_ApprovedModels`",
+              "style": "warning"
+            },
+            "name": "soc-modE-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// CONTROL: AIGS-AM001  MODULE: E — Azure General\n// ASIM: imAuditEvent — native\n// Detects unauthorized AI model deployments (ARM write to CognitiveServices deployments).\n// Cross-reference with AIGS_ApprovedModels watchlist when watchlist is deployed.\nAzureActivity\n| where TimeGenerated > {TimeRange:start}\n| where OperationNameValue has 'cognitiveservices'\n      and OperationNameValue has 'deployments'\n| project\n    TimeGenerated,\n    ResourceGroup,\n    Resource,\n    Caller,\n    CallerIpAddress,\n    OperationNameValue,\n    ActivityStatus,\n    Properties=tostring(Properties)\n| sort by TimeGenerated desc",
+              "size": 0,
+              "title": "AIGS-AM001 — AI Model Deployment Events (SOC Hunt View — Analytic Rule Not Yet Authored) [AzureActivity]",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No AI model deployment events detected in the time range. If Azure OpenAI deployments have been created, verify AzureActivity is ingesting CognitiveServices ARM events. Note: AIGS-AM001 analytic rule has not been authored — no alert fires automatically. Absence of events does NOT confirm compliant state.",
+              "noDataMessageStyle": 3
+            },
+            "name": "soc-am001"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Modules B, C, D, F, G — Planned in this Batch (Connector Required)\n\n| Module | Control IDs | Required Connector | Status |\n|--------|-------------|-------------------|--------|\n| B — Agent 365 | AIGS-PA001, AIGS-CD002 | Microsoft Defender XDR | ◻ Not Configured |\n| C — M365 Copilot | AIGS-CD003 | Microsoft Copilot Data Connector (Preview) | ◻ Not Configured |\n| D — Defender XDR | AIGS-CD004 | Microsoft Defender XDR + Defender for Cloud Apps | ◻ Not Configured |\n| F — Microsoft Purview | AIGS-AM002 | Office 365 connector installed; Purview AI Hub activity needed | ⚠️ Connector Installed |\n| G — Security Copilot | AIGS-RU001 | Copilot Data Connector + UAL opt-in + `enableSecurityCopilotModule` | 🔴 Disabled |\n\nThese modules are **never shown as Compliant** while connectors are absent. Data surfaces automatically once connectors are configured.",
+              "style": "warning"
+            },
+            "name": "soc-planned-notice"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "ActiveTab",
+        "comparison": "isEqualTo",
+        "value": "tab-soc"
+      },
+      "name": "tab-soc"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "Group/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### 🧺 Platform Health\n**Audience:** AI Platform Admin / DevOps / Solution Admin\n\nModule health status, connector availability, ASIM promotion declarations, and core table telemetry freshness. Use **Module** and **Maturity** filters.\n\n> **isfuzzy=true pattern:** All optional-table health checks use `union isfuzzy=true`. Missing tables are silently skipped and return zero events, surfacing as **Not Configured**. No query will error due to an absent optional table.",
+              "style": "info"
+            },
+            "name": "health-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// Platform Health — module status using isfuzzy=true for optional tables.\n// Tables absent from workspace return 0 and surface as Not Configured.\n// isfuzzy=true: missing table legs are silently skipped; no query errors.\nlet modA = toscalar(\n    AzureActivity | where TimeGenerated > ago(7d)\n    | where OperationNameValue has 'cognitiveservices' | count\n);\nlet modB = toscalar(\n    union isfuzzy=true\n        (AgentsInfo | where TimeGenerated > ago(7d) | summarize n=count()),\n        (print n=long(0))\n    | summarize max(n)\n);\nlet modC = toscalar(\n    union isfuzzy=true\n        (CopilotActivity | where Workload != 'SecurityCopilot' | where TimeGenerated > ago(7d) | summarize n=count()),\n        (print n=long(0))\n    | summarize max(n)\n);\nlet modD = toscalar(\n    union isfuzzy=true\n        (CloudAppEvents | where TimeGenerated > ago(7d) | summarize n=count()),\n        (print n=long(0))\n    | summarize max(n)\n);\nlet modE = toscalar(\n    AzureActivity | where TimeGenerated > ago(7d)\n    | where OperationNameValue has 'cognitiveservices'\n          and OperationNameValue has 'deployments'\n    | count\n);\nlet modF = toscalar(\n    union isfuzzy=true\n        (OfficeActivity | where OfficeWorkload == 'Purview' | where TimeGenerated > ago(7d) | summarize n=count()),\n        (print n=long(0))\n    | summarize max(n)\n);\nlet modG = toscalar(\n    union isfuzzy=true\n        (CopilotActivity | where Workload == 'SecurityCopilot' | where TimeGenerated > ago(7d) | summarize n=count()),\n        (print n=long(0))\n    | summarize max(n)\n);\ndatatable(\n    Module:string, Label:string, Maturity:string, DefaultEnabled:string,\n    PrimaryTable:string, RequiredConnector:string, ControlIDs:string, ASIMLabel:string\n)[\n    'A','Azure OpenAI / Foundry','GA','Enabled',\n        'AzureActivity','Azure Activity (built-in)','AIGS-CD001 | AIGS-CD005','imAuditEvent — native',\n    'B','Agent 365 [Preview]','Preview','Enabled',\n        'AgentsInfo','Microsoft Defender XDR','AIGS-PA001 | AIGS-CD002','N/A — Defender XDR inventory (no ASIM)',\n    'C','M365 Copilot [Preview]','Preview','Enabled',\n        'CopilotActivity','Microsoft Copilot Data Connector','AIGS-CD003','Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)',\n    'D','Defender XDR [Preview]','Preview','Enabled',\n        'CloudAppEvents','Microsoft Defender XDR','AIGS-CD004','N/A — cloud app events (no applicable ASIM schema)',\n    'E','Azure General','GA','Enabled',\n        'AzureActivity','Azure Activity (built-in)','AIGS-AM001','imAuditEvent — native',\n    'F','Microsoft Purview [Preview]','Preview','Enabled',\n        'OfficeActivity','Office 365 connector','AIGS-AM002','imAuditEvent — partial',\n    'G','Security Copilot [Preview]','Preview','Disabled (default)',\n        'CopilotActivity','Copilot Data Connector + UAL opt-in','AIGS-RU001','Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)'\n]\n| extend EventCount7d = case(\n    Module == 'A', modA, Module == 'B', modB, Module == 'C', modC,\n    Module == 'D', modD, Module == 'E', modE, Module == 'F', modF,\n    Module == 'G', modG, long(0)\n)\n| extend Status = case(\n    Module == 'G',               '\\U0001f534 Disabled — enableSecurityCopilotModule = false (default)',\n    Module == 'A' and modA > 0,  '\\U0001f7e2 Healthy — Azure OpenAI governance events detected',\n    Module == 'A',               '\\U0001f7e1 Degraded — AzureActivity present; no AI governance events (7d)',\n    Module == 'B' and modB > 0,  '\\U0001f7e2 Healthy',\n    Module == 'B',               '\\u25fb Not Configured — Microsoft Defender XDR connector required',\n    Module == 'C' and modC > 0,  '\\U0001f7e2 Healthy',\n    Module == 'C',               '\\u25fb Not Configured — Microsoft Copilot Data Connector required',\n    Module == 'D' and modD > 0,  '\\U0001f7e2 Healthy',\n    Module == 'D',               '\\u25fb Not Configured — Microsoft Defender XDR connector required',\n    Module == 'E' and modE > 0,  '\\U0001f7e2 Healthy — Model deployment events detected',\n    Module == 'E',               '\\U0001f7e1 Degraded — AzureActivity present; no model deployment events (7d)',\n    Module == 'F' and modF > 0,  '\\U0001f7e2 Healthy — Purview AI Hub events detected',\n    Module == 'F',               '\\u26a0\\ufe0f Connector Installed — No Purview AI Hub events (7d)',\n    '\\u25fb Unknown'\n)\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\n| where '{MaturityFilter}' == 'All' or Maturity == '{MaturityFilter}'\n| project Module, Label, Status, EventCount7d, Maturity, DefaultEnabled,\n          ControlIDs, ASIMLabel, RequiredConnector\n| sort by Module asc",
+              "size": 0,
+              "title": "Module Health Status — All 7 Modules",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "Module status table unavailable. Verify workspace parameter is set.",
+              "noDataMessageStyle": 4
+            },
+            "name": "health-modules"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### ASIM Promotion Declarations\n\nThis solution promotes ASIM where official schemas exist. Custom parsers (`AIGS_*`) are solution-specific normalization and are **NOT** ASIM-equivalent. They do not implement `_Im*` functions. Per binding implementation rule (Switch Finding 6): custom parsers must never be labeled as ASIM.",
+              "style": "info"
+            },
+            "name": "health-asim-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "datatable(DataTable:string, ASIMStatus:string, ASIMFunction:string,\n          KQLHeaderComment:string, UsedInModules:string)[\n    'AzureActivity',    'Native ASIM',               '_Im_AuditEvent / imAuditEvent',\n        '// ASIM: imAuditEvent — native',                                    'A, E',\n    'AzureDiagnostics', 'No applicable ASIM',        'N/A — Cognitive Services data-plane only',\n        '// ASIM: N/A — no Cognitive Services data-plane ASIM schema',       'A (data-plane only)',\n    'AgentsInfo',       'No ASIM',                   'N/A — Defender XDR proprietary inventory',\n        '// ASIM: N/A — Defender XDR agent inventory table',                 'B',\n    'CloudAppEvents',   'No applicable ASIM',        'N/A — cloud app governance events',\n        '// ASIM: N/A — cloud app events, no applicable ASIM schema',        'D',\n    'CopilotActivity',  'Custom normalization only',  'AIGS_CopilotActivity_Normalized (NOT ASIM)',\n        '// ASIM: N/A — custom parser, not _Im*-compliant',                  'C, G',\n    'OfficeActivity',   'Partial Native ASIM',        'imAuditEvent — applicable operations',\n        '// ASIM: imAuditEvent — partial; N/A for Purview-specific fields',  'F',\n    'SigninLogs',       'Native ASIM',               '_Im_Authentication / imAuthentication',\n        '// ASIM: imAuthentication — native',                                'Identity enrichment'\n]\n| project DataTable, ASIMStatus, ASIMFunction, KQLHeaderComment, UsedInModules",
+              "size": 0,
+              "title": "ASIM Applicability per Table",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "ASIM declaration table unavailable.",
+              "noDataMessageStyle": 3
+            },
+            "name": "health-asim"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Core Table Telemetry Freshness",
+              "style": "info"
+            },
+            "name": "health-freshness-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// Core tables guaranteed by Microsoft Sentinel baseline — no isfuzzy needed.\nunion\n    (AzureActivity    | summarize LastEvent=max(TimeGenerated)\n     | extend TableName='AzureActivity',    Role='Required — Modules A, E'),\n    (SecurityIncident | summarize LastEvent=max(TimeGenerated)\n     | extend TableName='SecurityIncident',  Role='Required — SOC Operations'),\n    (SecurityAlert    | summarize LastEvent=max(TimeGenerated)\n     | extend TableName='SecurityAlert',     Role='Required — SOC Operations')\n| extend AgeDays = datetime_diff('day', now(), LastEvent)\n| extend FreshnessStatus = case(\n    AgeDays <= 1, '\\U0001f7e2 Fresh (< 1 day)',\n    AgeDays <= 7, '\\U0001f7e1 Stale (1–7 days)',\n    '\\U0001f534 Overdue (> 7 days)'\n  )\n| project TableName, LastEvent, AgeDays, FreshnessStatus, Role",
+              "size": 0,
+              "title": "Core Table Freshness — AzureActivity, SecurityIncident, SecurityAlert",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "Core table freshness check failed. At least one required table may be missing.",
+              "noDataMessageStyle": 5
+            },
+            "name": "health-freshness"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "ActiveTab",
+        "comparison": "isEqualTo",
+        "value": "tab-health"
+      },
+      "name": "tab-health"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "Group/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### 📋 Compliance Mapping\n**Audience:** Compliance Officer / Auditor\n\nControl-to-framework mapping for MCSB and NIST AI RMF. Use **Control ID** and **Module** filters to narrow.\n\n> ⚠️ **Compliance percentages are not computed.** Evidence status is stated explicitly (Active, Planned, Disabled). Controls dependent on connectors not yet deployed are marked **Planned** — they are not counted as compliant. Fabricated compliance scores are explicitly prohibited by solution design decisions.",
+              "style": "warning"
+            },
+            "name": "compliance-header"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "#### Microsoft Cloud Security Benchmark (MCSB) — Control Mapping",
+              "style": "info"
+            },
+            "name": "compliance-mcsb-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// MCSB control mapping — evidence status only; no compliance scores computed.\n// Control IDs are solution-owned (AIGS-*) with many-to-many framework mappings.\ndatatable(\n    ControlID:string, ControlName:string, Module:string,\n    MCSBDomain:string, MCSBControlID:string, MCSBControlTitle:string,\n    EvidenceSource:string, EvidenceStatus:string\n)[\n    'AIGS-CD001','Content Filter Policy Change Detection','A — Azure OpenAI/Foundry',\n        'NS — Network Security','NS-1','Establish network segmentation boundaries',\n        'AzureActivity (ARM events)','Active — Rule deployed',\n    'AIGS-CD001','Content Filter Policy Change Detection','A — Azure OpenAI/Foundry',\n        'IM — Identity Management','IM-1','Use centralized identity and authentication system',\n        'AzureActivity (ARM events)','Active — Rule deployed',\n    'AIGS-CD005','AI Resource Diagnostics Changed','A — Azure OpenAI/Foundry',\n        'LT — Logging and Threat Detection','LT-3','Enable logging for security investigation',\n        'AzureActivity (ARM events)','Active — Rule deployed',\n    'AIGS-PA001','Agent Missing DLP Guardrail','B — Agent 365',\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\n    'AIGS-PA001','Agent Missing DLP Guardrail','B — Agent 365',\n        'DP — Data Protection','DP-2','Protect sensitive data',\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\n    'AIGS-CD002','Agent Configuration Drift','B — Agent 365',\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C — M365 Copilot',\n        'IM — Identity Management','IM-1','Centralize identity and authentication system',\n        'CopilotActivity (Copilot Connector)','Planned — Connector required',\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C — M365 Copilot',\n        'IM — Identity Management','IM-8','Restrict exposure of credentials and secrets',\n        'CopilotActivity (Copilot Connector)','Planned — Connector required',\n    'AIGS-CD004','Unsanctioned AI App Access','D — Defender XDR',\n        'AM — Asset Management','AM-2','Use only approved services',\n        'CloudAppEvents (Defender XDR)','Planned — Connector required',\n    'AIGS-AM001','Unauthorized AI Model Deployment','E — Azure General',\n        'AM — Asset Management','AM-2','Use only approved services',\n        'AzureActivity (hunt query)','Active — Hunt deployed; Analytic rule not yet authored',\n    'AIGS-AM001','Unauthorized AI Model Deployment','E — Azure General',\n        'AM — Asset Management','AM-4','Limit access to Azure resources',\n        'AzureActivity (hunt query)','Active — Hunt deployed; Analytic rule not yet authored',\n    'AIGS-AM002','Purview AI Hub Policy Violation','F — Microsoft Purview',\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\n        'OfficeActivity (Office 365 connector)','Planned — Needs Purview AI Hub activity',\n    'AIGS-AM002','Purview AI Hub Policy Violation','F — Microsoft Purview',\n        'DP — Data Protection','DP-3','Monitor anomalous data access',\n        'OfficeActivity (Office 365 connector)','Planned — Needs Purview AI Hub activity',\n    'AIGS-RU001','Anomalous Security Copilot Usage','G — Security Copilot',\n        'IR — Incident Response','IR-1','Prepare an incident response plan',\n        'CopilotActivity (Copilot Connector + UAL)','Disabled — enableSecurityCopilotModule required'\n]\n| where '{ControlFilter}' == 'All' or ControlID == '{ControlFilter}'\n| where '{ModuleFilter}' == 'All' or Module startswith '{ModuleFilter}'\n| project ControlID, ControlName, Module, MCSBDomain, MCSBControlID,\n          MCSBControlTitle, EvidenceStatus\n| sort by ControlID asc, MCSBControlID asc",
+              "size": 0,
+              "title": "MCSB Mapping — Solution Controls → MCSB Domains",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No controls match the selected filters.",
+              "noDataMessageStyle": 3
+            },
+            "name": "compliance-mcsb"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### NIST AI Risk Management Framework — Function Mapping\n\nFunctions: **GOVERN** (policies & oversight) · **MAP** (risk identification) · **MEASURE** (monitoring) · **MANAGE** (risk treatment) · **RESPOND** (incident response)",
+              "style": "info"
+            },
+            "name": "compliance-nist-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "// NIST AI RMF mapping — GOVERN/MAP/MANAGE/RESPOND functions.\n// No compliance score computed. Status reflects deployment state only.\ndatatable(\n    ControlID:string, ControlName:string, Module:string,\n    NISTFunction:string, NISTCategoryID:string, NISTCategoryTitle:string,\n    DeploymentStatus:string\n)[\n    'AIGS-CD001','Content Filter Policy Change Detection','A',\n        'GOVERN','GOVERN 1.1','Policies, processes, and practices are in place','Active — Deployed',\n    'AIGS-CD001','Content Filter Policy Change Detection','A',\n        'GOVERN','GOVERN 1.6','Policies and procedures are established for AI risk','Active — Deployed',\n    'AIGS-CD005','AI Resource Diagnostics Changed','A',\n        'GOVERN','GOVERN 1.3','AI risk is identified and prioritized','Active — Deployed',\n    'AIGS-CD005','AI Resource Diagnostics Changed','A',\n        'MAP','MAP 5.1','Likelihood of AI risk is estimated','Active — Deployed',\n    'AIGS-PA001','Agent Missing DLP Guardrail','B',\n        'MANAGE','MANAGE 2.2','Mechanisms to sustain and monitor AI risk responses','Planned',\n    'AIGS-CD002','Agent Configuration Drift','B',\n        'GOVERN','GOVERN 5.1','Organizational risk tolerance for AI is established','Planned',\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C',\n        'GOVERN','GOVERN 1.7','Processes to monitor AI risks on an ongoing basis','Planned',\n    'AIGS-CD004','Unsanctioned AI App Access','D',\n        'MAP','MAP 1.5','Organizational risk tolerances are established','Planned',\n    'AIGS-AM001','Unauthorized AI Model Deployment','E',\n        'GOVERN','GOVERN 4.1','AI policies are aligned with applicable laws','Active — Hunt deployed; Analytic rule not yet authored',\n    'AIGS-AM002','Purview AI Hub Policy Violation','F',\n        'MANAGE','MANAGE 4.1','Post-deployment AI risks and incidents are tracked','Planned',\n    'AIGS-RU001','Anomalous Security Copilot Usage','G',\n        'RESPOND','RESPOND 2.1','AI risk incidents are monitored, tracked and documented','Disabled',\n    'AIGS-RU001','Anomalous Security Copilot Usage','G',\n        'RESPOND','RESPOND 5.1','Organizational response functions for AI risk','Disabled'\n]\n| where '{ControlFilter}' == 'All' or ControlID == '{ControlFilter}'\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\n| project ControlID, ControlName, Module, NISTFunction, NISTCategoryID,\n          NISTCategoryTitle, DeploymentStatus\n| sort by NISTFunction asc, NISTCategoryID asc",
+              "size": 0,
+              "title": "NIST AI RMF Mapping — Solution Controls → Functions & Categories",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No controls match the selected filters.",
+              "noDataMessageStyle": 3
+            },
+            "name": "compliance-nist"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Extensibility\n\n| Framework | v1.0 Status | Path to Add |\n|-----------|-------------|-------------|\n| ISO/IEC 42001 (AI Management System) | Not mapped | Add columns to mapping datatable |\n| EU AI Act | Not mapped | Add columns to mapping datatable |\n| Organization-specific | Not mapped | Parameterize via Watchlist `AIGS_ControlMappings` |",
+              "style": "info"
+            },
+            "name": "compliance-ext-note"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "ActiveTab",
+        "comparison": "isEqualTo",
+        "value": "tab-compliance"
+      },
+      "name": "tab-compliance"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "Group/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "### 🧩 Module Coverage\n**Audience:** Solution Admin\n\nModule inventory, maturity labels, graduation status, data source inventory, and prerequisite validation. Use **Module** and **Maturity** filters.\n\n> **Maturity labels:** `GA` = stable, validated · `Preview` = connector-dependent, schema may change · `Disabled` = explicit opt-in required. No module can skip Preview validation.",
+              "style": "info"
+            },
+            "name": "modules-header"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "datatable(\n    Module:string, Label:string, Maturity:string, DefaultEnabled:string,\n    BatchStatus:string, PrimaryTable:string, RequiredConnector:string,\n    ControlIDs:string, RuleCount:int, HuntCount:int,\n    ASIMLabel:string, WatchlistDependency:string, SpecialPrerequisite:string\n)[\n    'A','Azure OpenAI / Foundry','GA','Enabled',\n        'Active — Reference Module. 2 rules + 1 hunt. Rules: AIGS-CD001 (RAI Policy Modified), AIGS-CD005 (AI Resource Diagnostics Changed). Hunt: AIGS-Hunt-AzureOpenAIRAIChanges. Module E hunt (AIGS-Hunt-AIModelDeploymentChanges) also covers Module A deployment events.',\n        'AzureActivity','Azure Activity (built-in)',\n        'AIGS-CD001 | AIGS-CD005',2,1,\n        'imAuditEvent — native','AIGS_ContentFilterPolicies','None — built-in connector',\n    'B','Agent 365 [Preview]','Preview','Enabled',\n        'Planned. AgentsInfo is snapshot/inventory; rule runs on 4h schedule (not real-time). AIAgentsInfo deprecated 2026-07-01.',\n        'AgentsInfo','Microsoft Defender XDR',\n        'AIGS-PA001 | AIGS-CD002',2,1,\n        'N/A — no ASIM schema (Defender XDR proprietary)','AIGS_ApprovedAgents','Defender XDR connector; AgentsInfo Preview table',\n    'C','M365 Copilot [Preview]','Preview','Enabled',\n        'Planned. CopilotActivity RecordType: CreateCopilotPlugin / UpdateCopilotPlugin / DeleteCopilotPlugin.',\n        'CopilotActivity','Microsoft Copilot Data Connector (Preview)',\n        'AIGS-CD003',1,1,\n        'Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)','AIGS_ApprovedCopilotPlugins','Copilot Data Connector; CopilotActivity (Preview)',\n    'D','Defender XDR [Preview]','Preview','Enabled',\n        'Planned. Scenario: unsanctioned AI app access (heuristic). Deterministic ActionTypes for policy drift unverified.',\n        'CloudAppEvents','Microsoft Defender XDR',\n        'AIGS-CD004',1,1,\n        'N/A — no applicable ASIM schema','AIGS_DefenderXDRBaseline','Defender for Cloud Apps + Defender XDR connector',\n    'E','Azure General','GA','Enabled',\n        'Active. Hunt deployed: AIGS-Hunt-AIModelDeploymentChanges (Module E; also surfaces Azure OpenAI/Foundry deployment events). Analytic rule AIGS-AM001 not yet authored — Not Configured for automated alerting.',\n        'AzureActivity','Azure Activity (built-in)',\n        'AIGS-AM001 (hunt reference)',0,1,\n        'imAuditEvent — native','AIGS_ApprovedModels','None — built-in connector',\n    'F','Microsoft Purview [Preview]','Preview','Enabled',\n        'Connector installed; no Purview AI Hub events yet. Exact Operation values for AI Hub policy violations must be verified before AIGS-AM002 is authored.',\n        'OfficeActivity','Office 365 connector (installed)',\n        'AIGS-AM002',1,1,\n        'imAuditEvent — partial','AIGS_PurviewPolicies','Purview AI Hub activity; exact Operation values TBD',\n    'G','Security Copilot [Preview]','Preview','Disabled (default)',\n        'DISABLED by default. Requires enableSecurityCopilotModule = true, Copilot Data Connector, Security Copilot UAL opt-in, delegated OAuth (NOT UAMI), and SCU provisioning.',\n        'CopilotActivity','Copilot Data Connector (Preview)',\n        'AIGS-RU001',1,1,\n        'Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)','AIGS_ApprovedCopilotPlugins (shared)','enableSecurityCopilotModule opt-in; delegated OAuth exception; UAL logging toggle; SCU cost-gated'\n]\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\n| where '{MaturityFilter}' == 'All' or Maturity == '{MaturityFilter}'\n| project Module, Label, BatchStatus, Maturity, DefaultEnabled,\n          ControlIDs, RuleCount, HuntCount, ASIMLabel,\n          RequiredConnector, WatchlistDependency, SpecialPrerequisite\n| sort by Module asc",
+              "size": 0,
+              "title": "Module Inventory — All 7 Modules",
+              "timeContextFromParameter": "TimeRange",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [
+                "{Workspace}"
+              ],
+              "visualization": "table",
+              "noDataMessage": "No modules match the selected filters.",
+              "noDataMessageStyle": 3
+            },
+            "name": "modules-inventory"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Connector Installation Guide\n\n| Module | Connector | Location | Notes |\n|--------|-----------|----------|-------|\n| A, E | Azure Activity | Built-in | No action needed |\n| B, C, D | Microsoft Defender XDR | Content Hub → Defender XDR | Requires M365 E5 or Defender for Cloud Apps |\n| C, G | Microsoft Copilot Data Connector | Content Hub → Microsoft Copilot (Preview) | Public preview; schema may change |\n| F | Office 365 | Content Hub → Office 365 | Installed. Activate Purview AI Hub and generate activity. |\n| G | Security Copilot UAL | Security Copilot Owner Settings | Toggle: *Logging audit data in Microsoft Purview*. SCU provisioning required. |\n\n> **Module G gate:** `enableSecurityCopilotModule` ARM parameter must be `true` (default: `false`). Requires delegated OAuth credential — UAMI not supported for Security Copilot API (explicit architectural exception).",
+              "style": "info"
+            },
+            "name": "modules-connector-guide"
+          },
+          {
+            "type": 1,
+            "content": {
+              "json": "---\n#### Status Legend\n\n| Symbol | Meaning |\n|--------|---------|\n| 🟢 Healthy | Table present, recent events detected |\n| 🟡 Degraded | Table present, no recent governance events |\n| ◻ Not Configured | Required connector not installed |\n| ⚠️ Connector Installed | Connector present but no relevant data yet |\n| 🔴 Disabled | Module explicitly disabled (opt-in required) |",
+              "style": "info"
+            },
+            "name": "modules-status-legend"
+          }
+        ]
+      },
+      "conditionalVisibility": {
+        "parameterName": "ActiveTab",
+        "comparison": "isEqualTo",
+        "value": "tab-modules"
+      },
+      "name": "tab-modules"
+    }
+  ]
+}

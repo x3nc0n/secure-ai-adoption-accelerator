@@ -1,0 +1,21 @@
+{
+  "publisherId": "x3nc0n",
+  "offerId": "microsoft-sentinel-ai-governance-solution",
+  "firstPublishDate": "2026-07-17",
+  "providers": [
+    "Microsoft"
+  ],
+  "categories": {
+    "domains": [
+      "Security - Governance, Risk, Compliance",
+      "Application"
+    ],
+    "verticals": []
+  },
+  "support": {
+    "name": "x3nc0n",
+    "email": "",
+    "tier": "Community",
+    "link": "https://github.com/x3nc0n"
+  }
+}

@@ -1,0 +1,832 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "title": "AIGS - Auto - Restore Diagnostics",
+    "description": "PB-AUTO-01: Sentinel incident trigger → CD005 rule-ID gate → CognitiveServices resource-type gate → Teams approval (delegated OAuth, separate from UAMI) → GET AIGS-Required-Diagnostics diagnostic setting → already-compliant short-circuit (no PUT) → PUT ENSURE only the dedicated named setting → incident comment. Azure ARM calls use UAMI HTTP MSI auth. Teams uses a separate delegated OAuth connection.",
+    "prerequisites": "1. UAMI with Sentinel Responder on workspace and Monitoring Contributor on the target resource scope. 2. Microsoft Teams OAuth connection authorized post-deployment. 3. Approver group object ID.",
+    "lastUpdateTime": "2026-07-22T00:00:00.000Z",
+    "tags": [
+      "AutoRemediation",
+      "DiagnosticSettings",
+      "Teams",
+      "AI Governance"
+    ],
+    "support": {
+      "tier": "Community",
+      "name": "x3nc0n"
+    },
+    "author": {
+      "name": "x3nc0n"
+    }
+  },
+  "parameters": {
+    "playbookName": {
+      "type": "string",
+      "defaultValue": "AIGS-Auto-001-RestoreDiagnostics",
+      "metadata": {
+        "description": "Name of the Logic App resource."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region. Defaults to resource group location."
+      }
+    },
+    "uamiResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the User-Assigned Managed Identity. Needs Sentinel Responder on workspace and Monitoring Contributor on the target resource scope. Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{name}"
+      }
+    },
+    "teamsGroupId": {
+      "type": "string",
+      "metadata": {
+        "description": "Microsoft Teams group (team) object ID for the approval destination."
+      }
+    },
+    "teamsChannelId": {
+      "type": "string",
+      "metadata": {
+        "description": "Microsoft Teams channel ID for the approval card."
+      }
+    },
+    "approverGroupObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure AD object ID of the group whose members receive the approval card."
+      }
+    },
+    "approvalTimeoutMinutes": {
+      "type": "int",
+      "defaultValue": 240,
+      "minValue": 30,
+      "maxValue": 1440,
+      "metadata": {
+        "description": "Minutes to wait for approval before timeout. Default 240 (4 hours)."
+      }
+    },
+    "diagnosticsWorkspaceResourceId": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource ID of the Log Analytics workspace for the diagnostic destination. Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}"
+      }
+    }
+  },
+  "variables": {
+    "azureSentinelConnectionName": "[concat('azuresentinel-', parameters('playbookName'))]",
+    "teamsConnectionName": "[concat('teams-', parameters('playbookName'))]",
+    "azureSentinelConnectionApiId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuresentinel')]",
+    "teamsConnectionApiId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/teams')]",
+    "approvalTimeoutISO": "[concat('PT', string(parameters('approvalTimeoutMinutes')), 'M')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('azureSentinelConnectionName')]",
+      "location": "[parameters('location')]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[concat('AIGS-Sentinel-', parameters('playbookName'))]",
+        "customParameterValues": {},
+        "parameterValueType": "Alternative",
+        "alternativeParameterValues": {
+          "token:TenantId": "[subscription().tenantId]",
+          "token:grantType": "managed_service_identity"
+        },
+        "api": {
+          "id": "[variables('azureSentinelConnectionApiId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/connections",
+      "apiVersion": "2016-06-01",
+      "name": "[variables('teamsConnectionName')]",
+      "location": "[parameters('location')]",
+      "kind": "V1",
+      "properties": {
+        "displayName": "[concat('AIGS-Teams-Approval-', parameters('playbookName'))]",
+        "customParameterValues": {},
+        "api": {
+          "id": "[variables('teamsConnectionApiId')]"
+        }
+      },
+      "metadata": {
+        "_deploymentNote": "REQUIRED POST-DEPLOYMENT: Authorize this Teams connection in the Azure Portal before approval cards can be delivered."
+      }
+    },
+    {
+      "type": "Microsoft.Logic/workflows",
+      "apiVersion": "2019-05-01",
+      "name": "[parameters('playbookName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+        "[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]"
+      ],
+      "tags": {
+        "hidden-SentinelTemplateName": "AIGS-Auto-001-RestoreDiagnostics",
+        "hidden-SentinelTemplateVersion": "0.1.0-preview.4"
+      },
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[parameters('uamiResourceId')]": {}
+        }
+      },
+      "properties": {
+        "state": "Disabled",
+        "definition": {
+          "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "$connections": {
+              "defaultValue": {},
+              "type": "Object"
+            },
+            "teamsGroupId": {
+              "defaultValue": "[parameters('teamsGroupId')]",
+              "type": "String"
+            },
+            "teamsChannelId": {
+              "defaultValue": "[parameters('teamsChannelId')]",
+              "type": "String"
+            },
+            "approverGroupObjectId": {
+              "defaultValue": "[parameters('approverGroupObjectId')]",
+              "type": "String"
+            },
+            "approvalTimeoutISO": {
+              "defaultValue": "[variables('approvalTimeoutISO')]",
+              "type": "String"
+            },
+            "approvalTimeoutMinutes": {
+              "defaultValue": "[parameters('approvalTimeoutMinutes')]",
+              "type": "Int"
+            },
+            "diagnosticsWorkspaceResourceId": {
+              "defaultValue": "[parameters('diagnosticsWorkspaceResourceId')]",
+              "type": "String"
+            },
+            "uamiResourceId": {
+              "defaultValue": "[parameters('uamiResourceId')]",
+              "type": "String"
+            }
+          },
+          "triggers": {
+            "Microsoft_Sentinel_Incident": {
+              "type": "ApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "connection": {
+                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                  }
+                },
+                "body": {
+                  "callback_url": "@{listCallbackUrl()}"
+                },
+                "path": "/incident-creation"
+              }
+            }
+          },
+          "actions": {
+            "Initialize_IncidentId": {
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "IncidentId",
+                    "type": "string",
+                    "value": "@triggerBody()?['object']?['name']"
+                  }
+                ]
+              },
+              "runAfter": {}
+            },
+            "Initialize_AffectedResourceId": {
+              "type": "InitializeVariable",
+              "inputs": {
+                "variables": [
+                  {
+                    "name": "AffectedResourceId",
+                    "type": "string",
+                    "value": ""
+                  }
+                ]
+              },
+              "runAfter": {
+                "Initialize_IncidentId": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Parse_RelatedEntities": {
+              "type": "ParseJson",
+              "inputs": {
+                "content": "@coalesce(triggerBody()?['object']?['properties']?['relatedEntities'], json('[]'))",
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "kind": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "properties": {
+                        "type": "object",
+                        "properties": {
+                          "resourceId": {
+                            "type": "string"
+                          },
+                          "subscriptionId": {
+                            "type": "string"
+                          },
+                          "friendlyName": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "runAfter": {
+                "Initialize_AffectedResourceId": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Filter_AzureResource_Entities": {
+              "type": "Query",
+              "inputs": {
+                "from": "@body('Parse_RelatedEntities')",
+                "where": "@equals(item()?['kind'], 'AzureResource')"
+              },
+              "runAfter": {
+                "Parse_RelatedEntities": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Set_AffectedResourceId": {
+              "type": "SetVariable",
+              "inputs": {
+                "name": "AffectedResourceId",
+                "value": "@{first(body('Filter_AzureResource_Entities'))?['properties']?['resourceId']}"
+              },
+              "runAfter": {
+                "Filter_AzureResource_Entities": [
+                  "Succeeded"
+                ]
+              }
+            },
+            "Check_CD005_Rule_Gate": {
+              "type": "If",
+              "expression": {
+                "contains": [
+                  "@triggerBody()?['object']?['properties']?['relatedAnalyticRuleIds']",
+                  "7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82"
+                ]
+              },
+              "actions": {
+                "Check_ResourceType_Gate": {
+                  "type": "If",
+                  "expression": {
+                    "and": [
+                      {
+                        "not": {
+                          "equals": [
+                            "@variables('AffectedResourceId')",
+                            ""
+                          ]
+                        }
+                      },
+                      {
+                        "contains": [
+                          "@toLower(variables('AffectedResourceId'))",
+                          "microsoft.cognitiveservices/accounts"
+                        ]
+                      }
+                    ]
+                  },
+                  "actions": {
+                    "Post_approval_card_and_wait": {
+                      "type": "ApiConnectionWebhook",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['teams']['connectionId']"
+                          }
+                        },
+                        "path": "/v1.0/teams/@{encodeURIComponent(parameters('teamsGroupId'))}/channels/@{encodeURIComponent(parameters('teamsChannelId'))}/onBehalfOf",
+                        "body": {
+                          "notificationUrl": "@{listCallbackUrl()}",
+                          "message": {
+                            "messageType": "message",
+                            "subject": "SENTINEL - APPROVAL REQUIRED: Restore AI Diagnostic Settings",
+                            "attachments": [
+                              {
+                                "id": "aigs-auto-01-approval",
+                                "contentType": "application/vnd.microsoft.card.adaptive",
+                                "content": "{\"$schema\":\"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\":\"AdaptiveCard\",\"version\":\"1.4\",\"body\":[{\"type\":\"TextBlock\",\"text\":\"AI Governance — Approval Required\",\"weight\":\"Bolder\",\"size\":\"Large\",\"color\":\"Attention\"},{\"type\":\"TextBlock\",\"text\":\"Diagnostic settings were removed from an AI resource. Approval is required before restoration.\",\"wrap\":true},{\"type\":\"FactSet\",\"facts\":[{\"title\":\"Incident\",\"value\":\"@{triggerBody()?['object']?['properties']?['title']}\"},{\"title\":\"Severity\",\"value\":\"@{triggerBody()?['object']?['properties']?['severity']}\"},{\"title\":\"Resource\",\"value\":\"@{variables('AffectedResourceId')}\"},{\"title\":\"Incident ID\",\"value\":\"@{variables('IncidentId')}\"},{\"title\":\"Expires\",\"value\":\"@{addMinutes(utcNow(), parameters('approvalTimeoutMinutes'))} UTC\"}]},{\"type\":\"TextBlock\",\"text\":\"Approving ensures only the dedicated AIGS-Required-Diagnostics diagnostic setting is present with categoryGroup allLogs and category AllMetrics to the designated workspace. No other diagnostic settings are modified.\",\"wrap\":true}],\"actions\":[{\"type\":\"Action.Submit\",\"title\":\"Approve — Ensure Diagnostics\",\"data\":{\"actionResult\":\"Approved\",\"incidentId\":\"@{variables('IncidentId')}\"}},{\"type\":\"Action.Submit\",\"title\":\"Reject — Do Not Restore\",\"data\":{\"actionResult\":\"Rejected\",\"incidentId\":\"@{variables('IncidentId')}\"}}]}"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "limit": {
+                        "timeout": "@parameters('approvalTimeoutISO')"
+                      },
+                      "runAfter": {}
+                    },
+                    "Check_approval_result": {
+                      "type": "Switch",
+                      "expression": "@body('Post_approval_card_and_wait')?['data']?['actionResult']",
+                      "cases": {
+                        "Approved": {
+                          "case": "Approved",
+                          "actions": {
+                            "GET_Diagnostic_Setting": {
+                              "type": "Http",
+                              "inputs": {
+                                "method": "GET",
+                                "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                "authentication": {
+                                  "type": "ManagedServiceIdentity",
+                                  "identity": "@parameters('uamiResourceId')",
+                                  "audience": "https://management.azure.com"
+                                }
+                              },
+                              "limit": {
+                                "timeout": "PT60S"
+                              },
+                              "runAfter": {}
+                            },
+                            "Filter_Logs_Enabled": {
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@coalesce(body('GET_Diagnostic_Setting')?['properties']?['logs'], json('[]'))",
+                                "where": "@and(equals(item()?['categoryGroup'], 'allLogs'), equals(item()?['enabled'], true))"
+                              },
+                              "runAfter": {
+                                "GET_Diagnostic_Setting": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Filter_Metrics_Enabled": {
+                              "type": "Query",
+                              "inputs": {
+                                "from": "@coalesce(body('GET_Diagnostic_Setting')?['properties']?['metrics'], json('[]'))",
+                                "where": "@and(equals(item()?['category'], 'AllMetrics'), equals(item()?['enabled'], true))"
+                              },
+                              "runAfter": {
+                                "Filter_Logs_Enabled": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Check_GET_Compliant": {
+                              "type": "If",
+                              "expression": {
+                                "and": [
+                                  {
+                                    "equals": [
+                                      "@toLower(coalesce(body('GET_Diagnostic_Setting')?['properties']?['workspaceId'], ''))",
+                                      "@toLower(parameters('diagnosticsWorkspaceResourceId'))"
+                                    ]
+                                  },
+                                  {
+                                    "greater": [
+                                      "@length(body('Filter_Logs_Enabled'))",
+                                      0
+                                    ]
+                                  },
+                                  {
+                                    "greater": [
+                                      "@length(body('Filter_Metrics_Enabled'))",
+                                      0
+                                    ]
+                                  }
+                                ]
+                              },
+                              "actions": {
+                                "Add_Already_Compliant_Comment": {
+                                  "type": "ApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                      }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                    "body": {
+                                      "message": "✅ **PB-AUTO-01 ALREADY COMPLIANT**: Diagnostic setting AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} verified at @{utcNow()} — workspaceId matches, allLogs enabled=true entry confirmed, AllMetrics enabled=true entry confirmed. No PUT performed."
+                                    }
+                                  },
+                                  "runAfter": {}
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "PUT_Diagnostic_Setting": {
+                                    "type": "Http",
+                                    "inputs": {
+                                      "method": "PUT",
+                                      "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                      "headers": {
+                                        "Content-Type": "application/json"
+                                      },
+                                      "body": {
+                                        "properties": {
+                                          "workspaceId": "@parameters('diagnosticsWorkspaceResourceId')",
+                                          "logs": [
+                                            {
+                                              "categoryGroup": "allLogs",
+                                              "enabled": true
+                                            }
+                                          ],
+                                          "metrics": [
+                                            {
+                                              "category": "AllMetrics",
+                                              "enabled": true
+                                            }
+                                          ]
+                                        }
+                                      },
+                                      "authentication": {
+                                        "type": "ManagedServiceIdentity",
+                                        "identity": "@parameters('uamiResourceId')",
+                                        "audience": "https://management.azure.com"
+                                      }
+                                    },
+                                    "runAfter": {}
+                                  },
+                                  "Add_Success_Comment": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connection": {
+                                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                        }
+                                      },
+                                      "method": "post",
+                                      "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                      "body": {
+                                        "message": "✅ **PB-AUTO-01 RESTORED**: Diagnostic setting AIGS-Required-Diagnostics ensured on @{variables('AffectedResourceId')} at @{utcNow()}. categoryGroup allLogs and category AllMetrics enabled to workspace @{parameters('diagnosticsWorkspaceResourceId')}. No other diagnostic settings were modified."
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "PUT_Diagnostic_Setting": [
+                                        "Succeeded"
+                                      ]
+                                    }
+                                  },
+                                  "Add_ARM_Failure_Comment": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connection": {
+                                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                        }
+                                      },
+                                      "method": "post",
+                                      "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                      "body": {
+                                        "message": "🔴 **PB-AUTO-01 ARM FAILURE**: PUT of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} failed at @{utcNow()}. Run ID: @{workflow()['run']['name']}. Verify UAMI Monitoring Contributor on resource scope. Manual remediation required."
+                                      }
+                                    },
+                                    "runAfter": {
+                                      "PUT_Diagnostic_Setting": [
+                                        "Failed"
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Filter_Metrics_Enabled": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Check_GET_404": {
+                              "type": "If",
+                              "expression": {
+                                "equals": [
+                                  "@outputs('GET_Diagnostic_Setting')?['statusCode']",
+                                  404
+                                ]
+                              },
+                              "actions": {
+                                "PUT_Diagnostic_Setting_NotFound": {
+                                  "type": "Http",
+                                  "inputs": {
+                                    "method": "PUT",
+                                    "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                    "headers": {
+                                      "Content-Type": "application/json"
+                                    },
+                                    "body": {
+                                      "properties": {
+                                        "workspaceId": "@parameters('diagnosticsWorkspaceResourceId')",
+                                        "logs": [
+                                          {
+                                            "categoryGroup": "allLogs",
+                                            "enabled": true
+                                          }
+                                        ],
+                                        "metrics": [
+                                          {
+                                            "category": "AllMetrics",
+                                            "enabled": true
+                                          }
+                                        ]
+                                      }
+                                    },
+                                    "authentication": {
+                                      "type": "ManagedServiceIdentity",
+                                      "identity": "@parameters('uamiResourceId')",
+                                      "audience": "https://management.azure.com"
+                                    }
+                                  },
+                                  "runAfter": {}
+                                },
+                                "Add_Created_Comment": {
+                                  "type": "ApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                      }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                    "body": {
+                                      "message": "✅ **PB-AUTO-01 CREATED**: Diagnostic setting AIGS-Required-Diagnostics did not exist (GET returned 404); created on @{variables('AffectedResourceId')} at @{utcNow()}. categoryGroup allLogs and category AllMetrics enabled to workspace @{parameters('diagnosticsWorkspaceResourceId')}. No other diagnostic settings were modified."
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "PUT_Diagnostic_Setting_NotFound": [
+                                      "Succeeded"
+                                    ]
+                                  }
+                                },
+                                "Add_ARM_Failure_Comment_NotFound": {
+                                  "type": "ApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                      }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                    "body": {
+                                      "message": "🔴 **PB-AUTO-01 ARM FAILURE**: PUT of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} failed at @{utcNow()}. Run ID: @{workflow()['run']['name']}. Verify UAMI Monitoring Contributor on resource scope. Manual remediation required."
+                                    }
+                                  },
+                                  "runAfter": {
+                                    "PUT_Diagnostic_Setting_NotFound": [
+                                      "Failed"
+                                    ]
+                                  }
+                                }
+                              },
+                              "else": {
+                                "actions": {
+                                  "Add_GET_NonRetryable_Failure_Comment": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connection": {
+                                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                        }
+                                      },
+                                      "method": "post",
+                                      "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                      "body": {
+                                        "message": "🔴 **PB-AUTO-01 GET FAILED — FAIL CLOSED**: GET of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} returned status @{outputs('GET_Diagnostic_Setting')?['statusCode']} at @{utcNow()}. This is not a 404 (setting not found) — possible 403 (access denied), 429 (throttled), or 5xx (service error). No PUT performed. Run ID: @{workflow()['run']['name']}. Manual investigation required."
+                                      }
+                                    },
+                                    "runAfter": {}
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "GET_Diagnostic_Setting": [
+                                  "Failed",
+                                  "TimedOut"
+                                ]
+                              }
+                            }
+                          }
+                        },
+                        "Rejected": {
+                          "case": "Rejected",
+                          "actions": {
+                            "Add_Rejection_Comment": {
+                              "type": "ApiConnection",
+                              "inputs": {
+                                "host": {
+                                  "connection": {
+                                    "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                  }
+                                },
+                                "method": "post",
+                                "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                "body": {
+                                  "message": "❌ **PB-AUTO-01 REJECTED**: Approver declined restoration at @{utcNow()}. No changes made to @{variables('AffectedResourceId')}. Incident remains Active for manual SOC triage."
+                                }
+                              },
+                              "runAfter": {}
+                            }
+                          }
+                        }
+                      },
+                      "default": {
+                        "actions": {
+                          "Add_Unexpected_Comment": {
+                            "type": "ApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connection": {
+                                  "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                }
+                              },
+                              "method": "post",
+                              "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                              "body": {
+                                "message": "⚠️ **PB-AUTO-01 UNEXPECTED RESPONSE**: Approval card returned unrecognized actionResult at @{utcNow()}: '@{body(''Post_approval_card_and_wait'')?[''data'']?[''actionResult'']}'. No changes made. Incident escalated for manual SOC review."
+                              }
+                            },
+                            "runAfter": {}
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Post_approval_card_and_wait": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Handle_approval_timeout": {
+                      "type": "Scope",
+                      "actions": {
+                        "Add_Timeout_Comment": {
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                              }
+                            },
+                            "method": "post",
+                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                            "body": {
+                              "message": "⏱️ **PB-AUTO-01 TIMED OUT**: Approval window (@{parameters('approvalTimeoutISO')}) expired at @{utcNow()}. No changes made to @{variables('AffectedResourceId')}. Incident remains Active. Manual SOC triage required."
+                            }
+                          },
+                          "runAfter": {}
+                        }
+                      },
+                      "runAfter": {
+                        "Post_approval_card_and_wait": [
+                          "TimedOut"
+                        ]
+                      }
+                    },
+                    "Handle_approval_failed": {
+                      "type": "Scope",
+                      "actions": {
+                        "Add_Teams_Failed_Comment": {
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                              }
+                            },
+                            "method": "post",
+                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                            "body": {
+                              "message": "🔴 **PB-AUTO-01 TEAMS DELIVERY FAILED**: Approval card could not be delivered at @{utcNow()}. Verify Teams connection is authorized (delegated OAuth) and teamsGroupId/teamsChannelId are correct. No changes made. Manual remediation required."
+                            }
+                          },
+                          "runAfter": {}
+                        }
+                      },
+                      "runAfter": {
+                        "Post_approval_card_and_wait": [
+                          "Failed"
+                        ]
+                      }
+                    }
+                  },
+                  "else": {
+                    "actions": {
+                      "Add_Invalid_ResourceType_Comment": {
+                        "type": "ApiConnection",
+                        "inputs": {
+                          "host": {
+                            "connection": {
+                              "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                            }
+                          },
+                          "method": "post",
+                          "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                          "body": {
+                            "message": "🚫 **PB-AUTO-01 RESOURCE TYPE GATE FAILED**: No AzureResource entity of type Microsoft.CognitiveServices/accounts found in relatedEntities at @{utcNow()}. Extracted resourceId: '@{variables(''AffectedResourceId'')}'. This playbook only remediates CognitiveServices accounts. No action taken."
+                          }
+                        },
+                        "runAfter": {}
+                      }
+                    }
+                  },
+                  "runAfter": {}
+                }
+              },
+              "else": {
+                "actions": {
+                  "Add_Wrong_Rule_Comment": {
+                    "type": "ApiConnection",
+                    "inputs": {
+                      "host": {
+                        "connection": {
+                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                        }
+                      },
+                      "method": "post",
+                      "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                      "body": {
+                        "message": "🚫 **PB-AUTO-01 RULE GATE FAILED**: relatedAnalyticRuleIds does not contain the required CD005 rule GUID (7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82) at @{utcNow()}. This playbook is scoped exclusively to CD005 incidents. No action taken."
+                      }
+                    },
+                    "runAfter": {}
+                  }
+                }
+              },
+              "runAfter": {
+                "Set_AffectedResourceId": [
+                  "Succeeded"
+                ]
+              }
+            }
+          },
+          "outputs": {}
+        },
+        "parameters": {
+          "$connections": {
+            "value": {
+              "azuresentinel": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+                "connectionName": "[variables('azureSentinelConnectionName')]",
+                "id": "[variables('azureSentinelConnectionApiId')]",
+                "connectionProperties": {
+                  "authentication": {
+                    "type": "ManagedServiceIdentity",
+                    "identity": "[parameters('uamiResourceId')]"
+                  }
+                }
+              },
+              "teams": {
+                "connectionId": "[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]",
+                "connectionName": "[variables('teamsConnectionName')]",
+                "id": "[variables('teamsConnectionApiId')]"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "playbookResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Logic/workflows', parameters('playbookName'))]"
+    },
+    "sentinelConnectionName": {
+      "type": "string",
+      "value": "[variables('azureSentinelConnectionName')]"
+    },
+    "teamsConnectionName": {
+      "type": "string",
+      "value": "[variables('teamsConnectionName')]"
+    },
+    "postDeploymentNote": {
+      "type": "string",
+      "value": "REQUIRED: (1) Authorize the Teams connection in Azure Portal before approval cards can be delivered. (2) Enable the Logic App workflow only after post-deployment validation. (3) Verify UAMI has Monitoring Contributor on the target CognitiveServices resource scope and Sentinel Responder on the workspace."
+    }
+  }
+}

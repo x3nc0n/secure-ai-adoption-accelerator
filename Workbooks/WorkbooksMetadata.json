@@ -1,0 +1,19 @@
+[
+  {
+    "workbookKey": "7b9bc9cb-c735-474a-9b4a-556e14482547",
+    "logoFileName": "AIGovernance.svg",
+    "description": "Monitor AI governance posture and configuration-change evidence across Microsoft AI services. Missing connectors, telemetry, and active baselines are reported as not configured rather than compliant.",
+    "dataTypesDependencies": [
+      "AzureActivity"
+    ],
+    "dataConnectorsDependencies": [
+      "AzureActivity"
+    ],
+    "previewImagesFileNames": [],
+    "version": "1.0.0",
+    "title": "AI Governance Solution",
+    "templateRelativePath": "AIGovernanceSolution.json",
+    "subtitle": "Governance coverage, configuration drift, and response readiness",
+    "provider": "x3nc0n"
+  }
+]

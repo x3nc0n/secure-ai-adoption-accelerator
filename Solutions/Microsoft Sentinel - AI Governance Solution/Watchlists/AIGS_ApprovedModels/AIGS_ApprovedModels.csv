@@ -1,0 +1,2 @@
+ItemKey,ModelId,DeploymentName,AccountName,ResourceGroupName,SubscriptionId,ApprovedVersion,MaxCapacityTPM,Region,Status,BaselineVersion,LastUpdated
+MDL-TEMPLATE-001,gpt-4o,gpt-4o-TEMPLATE,oai-example,rg-example,10000000-0000-0000-0000-000000000001,2024-11-20,100000,eastus,Template,3.0.0,2026-07-17T00:00:00Z

@@ -1,0 +1,156 @@
+id: 3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91
+name: "[AIGS] Config Drift - Responsible AI Policy Modified"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Detects successful write or delete operations against Microsoft.CognitiveServices/accounts/raiPolicies
+  on resources and policies explicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.
+
+  FAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero
+  results. An empty or template-only watchlist does not trigger alerts. Populate the watchlist with
+  at least one Status=Active row before this rule will fire.
+
+  Results are labeled drift candidates requiring analyst investigation. This rule DOES NOT confirm
+  that content filter values were weakened or removed — AzureActivity carries the ARM operation event
+  but not the before-state policy body. PB-AUTO-01 cannot restore RAI policies from this alert;
+  response is notify and investigate only.
+
+  Analyst action: Verify current raiPolicy state via Azure Portal or the REST API
+  (GET .../providers/Microsoft.CognitiveServices/accounts/{name}/raiPolicies) before escalating.
+
+  ASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional
+  imAuditEvent mapping available. No custom parser required; no false ASIM claim.
+
+  Module:   A — Azure OpenAI / Microsoft Foundry
+  Control:  AIGS-CD001
+  Domain:   Configuration Drift (CD)
+  Response: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 cannot restore RAI policies;
+            AzureActivity lacks before-state policy body)
+  Baseline: AIGS_ContentFilterPolicies watchlist (itemsSearchKey: ItemKey; match on AccountName + PolicyName)
+  MCSB:     NS-1 (Establish network segmentation boundaries), IM-1 (Use centralised identity)
+  NIST AI RMF: GOVERN-1.1, MANAGE-2.2
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+  - Impact
+relevantTechniques:
+  - T1562.001
+query: |
+  // ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)
+  // Control: AIGS-CD001
+  // Data Contract: AzureActivity | OperationNameValue in raiPolicies write/delete
+  //   Confirmed ARM operations (Trinity verified, 2026-07-17):
+  //     microsoft.cognitiveservices/accounts/raipolicies/write
+  //     microsoft.cognitiveservices/accounts/raipolicies/delete
+  // Watchlist (required for any alert): AIGS_ContentFilterPolicies — Active baseline entries only
+  //   itemsSearchKey: ItemKey (watchlist search index column is named ItemKey)
+  //   Match keys: AccountName (AzureActivity → watchlist) + PolicyTarget == WL_PolicyName (PolicyName column)
+  //   Watchlist schema (Tank-owned JSON metadata): ItemKey (itemsSearchKey), PolicyName, AccountName, ResourceId,
+  //     HateSeverityThreshold, ViolenceSeverityThreshold, SelfHarmSeverityThreshold,
+  //     SexualSeverityThreshold, JailbreakEnabled, IndirectAttackEnabled, Status, BaselineVersion
+  // FAIL-CLOSED: inner join on AccountName + PolicyName filter — if watchlist has no Active entries,
+  //   zero results produced. Empty or template-only baseline = no alerts.
+  // WARNING: ARM write/delete does NOT confirm policy removal or filter weakening.
+  //   All results are drift candidates requiring validation of current policy state.
+  //   PB-AUTO-01 cannot restore policies — AzureActivity lacks the before-state policy body.
+  let RaiPolicyOps = dynamic([
+      "microsoft.cognitiveservices/accounts/raipolicies/write",
+      "microsoft.cognitiveservices/accounts/raipolicies/delete"
+  ]);
+  // Load Active baseline entries only; empty result if watchlist absent or has no Active rows
+  // Fail-closed: inner join below yields zero results when BaselineResources is empty
+  let BaselineResources = materialize(
+      _GetWatchlist("AIGS_ContentFilterPolicies")
+      | where Status =~ "Active"
+      | project
+          WL_AccountName     = tolower(AccountName),
+          WL_PolicyName      = tolower(PolicyName),   // PolicyName column (ItemKey is the itemsSearchKey index column)
+          WL_HateSev         = HateSeverityThreshold,
+          WL_ViolenceSev     = ViolenceSeverityThreshold,
+          WL_JailbreakOn     = JailbreakEnabled,
+          WL_IndirectOn      = IndirectAttackEnabled
+  );
+  AzureActivity
+  | where TimeGenerated >= ago(1h)
+  | where tolower(OperationNameValue) in (RaiPolicyOps)
+  | where ActivityStatusValue =~ "Success"
+  | extend
+      // Extract CognitiveServices account name and raiPolicy name from ARM resource path
+      // Path pattern: .../accounts/{accountName}/raiPolicies/{policyName}
+      AccountName  = tostring(extract(@"/accounts/([^/]+)", 1, tolower(_ResourceId))),
+      PolicyTarget = tostring(extract(@"/raipolicies/([^/]+)", 1, tolower(_ResourceId))),
+      OperationType = iff(tolower(OperationNameValue) has "delete", "Delete", "Write")
+  // Inner join on AccountName: events on accounts with Active baseline entries only
+  // If BaselineResources is empty, inner join yields zero results (fail-closed)
+  | join kind=inner (BaselineResources) on $left.AccountName == $right.WL_AccountName
+  // Require the specific policy to be explicitly Active in the baseline (ItemKey match)
+  // Policies not listed as Active in AIGS_ContentFilterPolicies do not trigger alerts
+  | where PolicyTarget == WL_PolicyName
+  | extend
+      DriftFlag = case(
+          OperationType == "Delete",
+              "HIGH — Delete on Active baseline policy; validate policy still present via REST API",
+          OperationType == "Write",
+              "MEDIUM — Write on Active baseline policy; validate policy values unchanged via REST API",
+          "INFO — Review"
+      ),
+      DriftCandidateNote = strcat(
+          "Drift candidate — investigation required. ",
+          "This alert confirms a successful ARM ", OperationType, " on an Active baseline raiPolicy ",
+          "(account: ", AccountName, ", policy: ", PolicyTarget, "). ",
+          "It does NOT confirm removal or weakening of content filters. ",
+          "PB-AUTO-01 cannot restore this policy — AzureActivity lacks before-state. ",
+          "Verify current policy state via Azure Portal or REST API before escalating."
+      )
+  | project
+      TimeGenerated,
+      OperationType,
+      OperationNameValue,
+      _ResourceId,
+      AccountName,
+      PolicyTarget,
+      Caller,
+      CallerIpAddress,
+      SubscriptionId,
+      ResourceGroup,
+      ActivityStatusValue,
+      WL_PolicyName,
+      WL_HateSev,
+      WL_ViolenceSev,
+      WL_JailbreakOn,
+      DriftFlag,
+      DriftCandidateNote,
+      CorrelationId
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+customDetails:
+  OperationType: OperationType
+  PolicyTarget: PolicyTarget
+  AccountName: AccountName
+  DriftFlag: DriftFlag
+  WL_PolicyName: WL_PolicyName
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-CD001: RAI Policy {{OperationType}} — Drift Candidate Requires Validation"
+  alertDescriptionFormat: "{{DriftFlag}} | {{DriftCandidateNote}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

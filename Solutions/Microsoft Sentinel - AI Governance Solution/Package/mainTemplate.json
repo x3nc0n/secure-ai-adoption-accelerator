@@ -1,0 +1,1935 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "author": "x3nc0n",
+    "comments": "Solution template for Microsoft Sentinel - AI Governance Solution"
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Not used, but needed to pass arm-ttk test `Location-Should-Not-Be-Hardcoded`.  We instead use the `workspace-location` which is derived from the LA workspace"
+      }
+    },
+    "workspace-location": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "[concat('Region to deploy solution resources -- separate from location selection',parameters('location'))]"
+      }
+    },
+    "workspace": {
+      "defaultValue": "",
+      "type": "string",
+      "metadata": {
+        "description": "Workspace name for Log Analytics where Microsoft Sentinel is setup"
+      }
+    },
+    "workbook1-name": {
+      "type": "string",
+      "defaultValue": "AI Governance Solution",
+      "minLength": 1,
+      "metadata": {
+        "description": "Name for the workbook"
+      }
+    },
+    "watchlist1-id": {
+      "type": "string",
+      "defaultValue": "AIGS_ContentFilterPolicies",
+      "minLength": 1,
+      "metadata": {
+        "description": "Unique id for the watchlist"
+      }
+    },
+    "watchlist2-id": {
+      "type": "string",
+      "defaultValue": "AIGS_ApprovedModels",
+      "minLength": 1,
+      "metadata": {
+        "description": "Unique id for the watchlist"
+      }
+    }
+  },
+  "variables": {
+    "_solutionName": "Microsoft Sentinel - AI Governance Solution",
+    "_solutionVersion": "3.0.1",
+    "solutionId": "x3nc0n.microsoft-sentinel-ai-governance-solution",
+    "_solutionId": "[variables('solutionId')]",
+    "workbookVersion1": "1.0.0",
+    "workbookContentId1": "7b9bc9cb-c735-474a-9b4a-556e14482547",
+    "workbookId1": "[resourceId('Microsoft.Insights/workbooks', variables('workbookContentId1'))]",
+    "workbookTemplateSpecName1": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-wb-',uniquestring(variables('_workbookContentId1'))))]",
+    "_workbookContentId1": "[variables('workbookContentId1')]",
+    "workspaceResourceId": "[resourceId('microsoft.OperationalInsights/Workspaces', parameters('workspace'))]",
+    "_workbookcontentProductId1": "[concat(take(variables('_solutionId'),50),'-','wb','-', uniqueString(concat(variables('_solutionId'),'-','Workbook','-',variables('_workbookContentId1'),'-', variables('workbookVersion1'))))]",
+    "analyticRuleObject1": {
+      "analyticRuleVersion1": "1.0.0",
+      "_analyticRulecontentId1": "3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91",
+      "analyticRuleId1": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', '3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91')]",
+      "analyticRuleTemplateSpecName1": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-ar-',uniquestring('3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91')))]",
+      "_analyticRulecontentProductId1": "[concat(take(variables('_solutionId'),50),'-','ar','-', uniqueString(concat(variables('_solutionId'),'-','AnalyticsRule','-','3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91','-', '1.0.0')))]"
+    },
+    "analyticRuleObject2": {
+      "analyticRuleVersion2": "1.0.0",
+      "_analyticRulecontentId2": "7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82",
+      "analyticRuleId2": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', '7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82')]",
+      "analyticRuleTemplateSpecName2": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-ar-',uniquestring('7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82')))]",
+      "_analyticRulecontentProductId2": "[concat(take(variables('_solutionId'),50),'-','ar','-', uniqueString(concat(variables('_solutionId'),'-','AnalyticsRule','-','7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82','-', '1.0.0')))]"
+    },
+    "huntingQueryObject1": {
+      "huntingQueryVersion1": "1.0.0",
+      "_huntingQuerycontentId1": "b4f2a8d1-6e3c-4b9f-d0a7-8c2e5b1f4d63",
+      "huntingQueryTemplateSpecName1": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-hq-',uniquestring('b4f2a8d1-6e3c-4b9f-d0a7-8c2e5b1f4d63')))]"
+    },
+    "huntingQueryObject2": {
+      "huntingQueryVersion2": "1.0.0",
+      "_huntingQuerycontentId2": "a9d5e3b7-2c1f-4d8a-e6b4-3f7c9a0d2e51",
+      "huntingQueryTemplateSpecName2": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-hq-',uniquestring('a9d5e3b7-2c1f-4d8a-e6b4-3f7c9a0d2e51')))]"
+    },
+    "AIGS - Approved Content Filter Policies": "AIGS - Approved Content Filter Policies",
+    "_AIGS - Approved Content Filter Policies": "[variables('AIGS - Approved Content Filter Policies')]",
+    "AIGS - Approved AI Models": "AIGS - Approved AI Models",
+    "_AIGS - Approved AI Models": "[variables('AIGS - Approved AI Models')]",
+    "AIGS-Notify-001-TeamsAlert": "AIGS-Notify-001-TeamsAlert",
+    "_AIGS-Notify-001-TeamsAlert": "[variables('AIGS-Notify-001-TeamsAlert')]",
+    "playbookVersion1": "0.1.0-preview.1",
+    "playbookContentId1": "AIGS-Notify-001-TeamsAlert",
+    "_playbookContentId1": "[variables('playbookContentId1')]",
+    "playbookId1": "[resourceId('Microsoft.Logic/workflows', variables('playbookContentId1'))]",
+    "playbookTemplateSpecName1": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-pl-',uniquestring(variables('_playbookContentId1'))))]",
+    "_playbookcontentProductId1": "[concat(take(variables('_solutionId'),50),'-','pl','-', uniqueString(concat(variables('_solutionId'),'-','Playbook','-',variables('_playbookContentId1'),'-', variables('playbookVersion1'))))]",
+    "blanks": "[replace('b', 'b', '')]",
+    "AIGS-Auto-001-RestoreDiagnostics": "AIGS-Auto-001-RestoreDiagnostics",
+    "_AIGS-Auto-001-RestoreDiagnostics": "[variables('AIGS-Auto-001-RestoreDiagnostics')]",
+    "playbookVersion2": "0.1.0-preview.4",
+    "playbookContentId2": "AIGS-Auto-001-RestoreDiagnostics",
+    "_playbookContentId2": "[variables('playbookContentId2')]",
+    "playbookId2": "[resourceId('Microsoft.Logic/workflows', variables('playbookContentId2'))]",
+    "playbookTemplateSpecName2": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat(parameters('workspace'),'-pl-',uniquestring(variables('_playbookContentId2'))))]",
+    "_playbookcontentProductId2": "[concat(take(variables('_solutionId'),50),'-','pl','-', uniqueString(concat(variables('_solutionId'),'-','Playbook','-',variables('_playbookContentId2'),'-', variables('playbookVersion2'))))]",
+    "_solutioncontentProductId": "[concat(take(variables('_solutionId'),50),'-','sl','-', uniqueString(concat(variables('_solutionId'),'-','Solution','-',variables('_solutionId'),'-', variables('_solutionVersion'))))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('workbookTemplateSpecName1')]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGovernanceSolution Workbook with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('workbookVersion1')]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Insights/workbooks",
+              "name": "[variables('workbookContentId1')]",
+              "location": "[parameters('workspace-location')]",
+              "kind": "shared",
+              "apiVersion": "2021-08-01",
+              "metadata": {
+                "description": "Monitor AI governance posture and configuration-change evidence across Microsoft AI services. Missing connectors, telemetry, and active baselines are reported as not configured rather than compliant."
+              },
+              "properties": {
+                "displayName": "[parameters('workbook1-name')]",
+                "serializedData": "{\"$schema\":\"https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json\",\"version\":\"Notebook/1.0\",\"isLocked\":false,\"fallbackResourceIds\":[\"Azure Monitor\"],\"items\":[{\"type\":9,\"content\":{\"version\":\"KqlParameterItem/1.0\",\"crossComponentResources\":[\"value::1\"],\"parameters\":[{\"id\":\"9d82e3f4-1b6a-4c9d-8f12-5e7a3b5c4d9e\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"TimeRange\",\"label\":\"Time Range\",\"type\":4,\"description\":\"Time range filter for all log-based queries\",\"isRequired\":true,\"value\":\"P1D\",\"typeSettings\":{\"selectableValues\":[{\"durationMs\":3600000},{\"durationMs\":14400000},{\"durationMs\":43200000},{\"durationMs\":86400000},{\"durationMs\":172800000},{\"durationMs\":604800000},{\"durationMs\":1209600000},{\"durationMs\":2592000000}]}},{\"id\":\"3c7e8f2a-4b96-4d1f-a082-9d5e2c4a7b3f\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"Workspace\",\"label\":\"Log Analytics Workspace\",\"type\":5,\"description\":\"Target Sentinel workspace. No hard-coded tenant/subscription/workspace values.\",\"isRequired\":true,\"typeSettings\":{\"resourceTypeFilter\":{\"microsoft.operationalinsights/workspaces\":true},\"showDefault\":false}},{\"id\":\"7f3a9e2d-c847-4b1a-b5f0-3e8d9c7e2b4f\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"ActiveTab\",\"label\":\"Active Tab\",\"type\":1,\"description\":\"Internal tab selector\",\"isHiddenWhenLocked\":true,\"value\":\"tab-executive\"},{\"id\":\"2b4f7e3a-9c96-4d1f-b5c7-0d3e8a9f2b4c\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"ModuleFilter\",\"label\":\"Module\",\"type\":2,\"description\":\"Filter by module (A–G) or show all\",\"isRequired\":true,\"value\":\"All\",\"typeSettings\":{\"showDefault\":false},\"jsonData\":\"[{\\\"value\\\": \\\"All\\\", \\\"label\\\": \\\"All Modules\\\"}, {\\\"value\\\": \\\"A\\\", \\\"label\\\": \\\"A \\\\u2014 Azure OpenAI / Foundry\\\"}, {\\\"value\\\": \\\"B\\\", \\\"label\\\": \\\"B \\\\u2014 Agent 365\\\"}, {\\\"value\\\": \\\"C\\\", \\\"label\\\": \\\"C \\\\u2014 M365 Copilot\\\"}, {\\\"value\\\": \\\"D\\\", \\\"label\\\": \\\"D \\\\u2014 Defender XDR\\\"}, {\\\"value\\\": \\\"E\\\", \\\"label\\\": \\\"E \\\\u2014 Azure General\\\"}, {\\\"value\\\": \\\"F\\\", \\\"label\\\": \\\"F \\\\u2014 Microsoft Purview\\\"}, {\\\"value\\\": \\\"G\\\", \\\"label\\\": \\\"G \\\\u2014 Security Copilot (Disabled)\\\"}]\"},{\"id\":\"e8f3a7b2-4c96-4d1f-b9e7-3b0d8c5f2e7a\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"ControlFilter\",\"label\":\"Control ID\",\"type\":2,\"description\":\"Filter by AIGS control ID\",\"isRequired\":true,\"value\":\"All\",\"typeSettings\":{\"showDefault\":false},\"jsonData\":\"[{\\\"value\\\": \\\"All\\\", \\\"label\\\": \\\"All Controls\\\"}, {\\\"value\\\": \\\"AIGS-CD001\\\", \\\"label\\\": \\\"AIGS-CD001 — Content Filter Policy Change (Module A)\\\"}, {\\\"value\\\": \\\"AIGS-CD005\\\", \\\"label\\\": \\\"AIGS-CD005 — AI Resource Diagnostics Changed (Module A)\\\"}, {\\\"value\\\": \\\"AIGS-PA001\\\", \\\"label\\\": \\\"AIGS-PA001 — Agent Missing DLP Guardrail (Module B)\\\"}, {\\\"value\\\": \\\"AIGS-CD002\\\", \\\"label\\\": \\\"AIGS-CD002 — Agent Config Drift (Module B)\\\"}, {\\\"value\\\": \\\"AIGS-CD003\\\", \\\"label\\\": \\\"AIGS-CD003 — Unauthorized Copilot Plugin (Module C)\\\"}, {\\\"value\\\": \\\"AIGS-CD004\\\", \\\"label\\\": \\\"AIGS-CD004 — Unsanctioned AI App (Module D)\\\"}, {\\\"value\\\": \\\"AIGS-AM001\\\", \\\"label\\\": \\\"AIGS-AM001 — Unauthorized Model Deployment (Module E)\\\"}, {\\\"value\\\": \\\"AIGS-AM002\\\", \\\"label\\\": \\\"AIGS-AM002 — Purview AI Hub Policy Violation (Module F)\\\"}, {\\\"value\\\": \\\"AIGS-RU001\\\", \\\"label\\\": \\\"AIGS-RU001 — Anomalous Security Copilot Usage (Module G)\\\"}]\"},{\"id\":\"5c7e3b8f-4d96-4a1f-b3e7-8c5d0a9f2b7e\",\"version\":\"KqlParameterItem/1.0\",\"name\":\"MaturityFilter\",\"label\":\"Maturity\",\"type\":2,\"description\":\"Filter by module maturity level\",\"isRequired\":true,\"value\":\"All\",\"typeSettings\":{\"showDefault\":false},\"jsonData\":\"[{\\\"value\\\": \\\"All\\\", \\\"label\\\": \\\"All\\\"}, {\\\"value\\\": \\\"GA\\\", \\\"label\\\": \\\"GA\\\"}, {\\\"value\\\": \\\"Preview\\\", \\\"label\\\": \\\"Preview\\\"}, {\\\"value\\\": \\\"Disabled (default)\\\", \\\"label\\\": \\\"Disabled (default)\\\"}]\"}],\"style\":\"pills\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\"},\"name\":\"globalParameters\"},{\"type\":1,\"content\":{\"json\":\"## 🛡️ Microsoft Sentinel — AI Governance Solution\\n**Version:** 0.1.0-preview | **Publisher:** x3nc0n | **Support:** GitHub Issues | **Tier:** Community\\n\\nGovernance observability across seven AI platform modules. Select a **persona tab** below. Use **Time Range**, **Workspace**, **Module**, **Control ID**, and **Maturity** filters.\\n\\n> ⚠️ **Batch 1:** Module A (Azure OpenAI/Foundry) and Module E (Azure General) are active. Modules B–G are **planned** and require additional connectors. Missing connectors surface as **Not Configured** — never as Compliant.\",\"style\":\"info\"},\"name\":\"workbookTitle\"},{\"type\":11,\"content\":{\"version\":\"LinkItem/1.0\",\"style\":\"tabs\",\"links\":[{\"id\":\"tab-link-01\",\"cellValue\":\"ActiveTab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"📊 Executive Summary\",\"subTarget\":\"tab-executive\",\"style\":\"link\"},{\"id\":\"tab-link-02\",\"cellValue\":\"ActiveTab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"🔍 SOC Operations\",\"subTarget\":\"tab-soc\",\"style\":\"link\"},{\"id\":\"tab-link-03\",\"cellValue\":\"ActiveTab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"🧺 Platform Health\",\"subTarget\":\"tab-health\",\"style\":\"link\"},{\"id\":\"tab-link-04\",\"cellValue\":\"ActiveTab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"📋 Compliance Mapping\",\"subTarget\":\"tab-compliance\",\"style\":\"link\"},{\"id\":\"tab-link-05\",\"cellValue\":\"ActiveTab\",\"linkTarget\":\"parameter\",\"linkLabel\":\"🧩 Module Coverage\",\"subTarget\":\"tab-modules\",\"style\":\"link\"}]},\"name\":\"tabNavigation\"},{\"type\":12,\"content\":{\"version\":\"Group/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"### 📊 Executive Summary — AI Governance Posture\\n**Audience:** CISO / Security Director | **Batch:** 1 (July 2026) | **Solution:** Microsoft Sentinel — AI Governance Solution\\n\\nHigh-level posture, active incidents, module coverage, and framework alignment. All figures reflect the selected workspace and time range.\\n\\n> ⚠️ **Coverage note:** Figures reflect *deployed and connected* modules only. Modules without required connectors appear as **Not Configured** — never as Compliant. No compliance score is calculated; evidence status is stated explicitly per control.\",\"style\":\"info\"},\"name\":\"exec-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"let aigs_incidents = toscalar(\\n    SecurityIncident\\n    | where TimeGenerated > {TimeRange:start}\\n    | where Title has_any ('AIGS','AI Governance','Content Filter','RAI Policy','Copilot','Agent Config')\\n    | count\\n);\\nlet aigs_alerts = toscalar(\\n    SecurityAlert\\n    | where TimeGenerated > {TimeRange:start}\\n    | where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\\n    | count\\n);\\nprint\\n    ['Active AIGS Incidents']    = aigs_incidents,\\n    ['Active AIGS Alerts']       = aigs_alerts,\\n    ['Modules Active (Batch 1)'] = 2,\\n    ['Modules Planned']          = 5,\\n    ['Controls Monitored']       = 9,\\n    ['Frameworks Mapped']        = 2\",\"size\":4,\"title\":\"AI Governance KPIs\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"tiles\",\"noDataMessage\":\"KPI query failed. Verify workspace selection and that SecurityIncident / SecurityAlert tables are present.\",\"noDataMessageStyle\":4,\"tileSettings\":{\"showBorder\":true,\"titleContent\":{\"columnMatch\":\".*\",\"formatter\":1},\"leftContent\":{\"columnMatch\":\".*\",\"formatter\":12,\"numberFormat\":{\"unit\":17,\"options\":{\"style\":\"decimal\"}}}}},\"name\":\"exec-kpis\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"datatable(Module:string, Label:string, BatchStatus:string, ControlCount:int, Maturity:string)[\\n    'A','Azure OpenAI / Foundry',   '\\\\U0001f7e2 Active — Reference Module', 2, 'GA',\\n    'B','Agent 365',                '\\\\u25fb Planned — Connector Required',  2, 'Preview',\\n    'C','M365 Copilot',             '\\\\u25fb Planned — Connector Required',  1, 'Preview',\\n    'D','Defender XDR',             '\\\\u25fb Planned — Connector Required',  1, 'Preview',\\n    'E','Azure General',            '\\\\U0001f7e2 Active',                    1, 'GA',\\n    'F','Microsoft Purview',        '\\\\u26a0\\\\ufe0f Connector Installed — No AI Hub data', 1, 'Preview',\\n    'G','Security Copilot',         '\\\\U0001f534 Disabled — opt-in required', 1, 'Preview'\\n]\\n| project Module, Label, Maturity, BatchStatus, ControlCount\",\"size\":2,\"title\":\"Module Coverage Summary — Batch 1\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"Module coverage table unavailable.\",\"noDataMessageStyle\":3},\"name\":\"exec-coverage\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"SecurityAlert\\n| where TimeGenerated > {TimeRange:start}\\n| where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\\n| summarize Count=count() by bin(TimeGenerated, 1d)\\n| order by TimeGenerated asc\",\"size\":2,\"title\":\"AIGS Alert Trend — Selected Time Range\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"timechart\",\"noDataMessage\":\"No AIGS-tagged alerts in the selected time range. Expected when module connectors are not yet configured or no governance events occurred.\",\"noDataMessageStyle\":3},\"name\":\"exec-trend\"},{\"type\":1,\"content\":{\"json\":\"#### Framework Alignment Summary\\n\\n| Framework | Controls Mapped | Domains / Functions |\\n|-----------|-----------------|---------------------|\\n| Microsoft Cloud Security Benchmark (MCSB) | 9 | NS, DP, IM, AM, IR |\\n| NIST AI Risk Management Framework (AI RMF) | 9 | GOVERN, MAP, MANAGE, RESPOND |\\n\\n> Controls are solution-owned (`AIGS-*`) with many-to-many framework mappings. ISO/IEC 42001 and EU AI Act mappings can be added without modifying detection logic. See the **Compliance Mapping** tab for per-control detail.\",\"style\":\"success\"},\"name\":\"exec-framework-note\"}]},\"conditionalVisibility\":{\"parameterName\":\"ActiveTab\",\"comparison\":\"isEqualTo\",\"value\":\"tab-executive\"},\"name\":\"tab-executive\"},{\"type\":12,\"content\":{\"version\":\"Group/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"### 🔍 SOC Operations\\n**Audience:** SOC Analyst / Incident Responder\\n\\nActive AIGS incidents and alerts, plus live query results for Module A (Azure OpenAI/Foundry) and Module E (Azure General) — the two modules with built-in data sources active in this batch.\\n\\n> Use **Control ID** and **Time Range** parameters to narrow results. Queries filter on AIGS control ID tags and governance-related keywords.\",\"style\":\"info\"},\"name\":\"soc-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"SecurityIncident\\n| where TimeGenerated > {TimeRange:start}\\n| where Title has_any ('AIGS','AI Governance','Content Filter','RAI Policy',\\n          'Azure OpenAI','Model Deployment','Agent Config','Copilot Plugin')\\n| where '{ControlFilter}' == 'All'\\n    or tostring(Labels) has '{ControlFilter}'\\n    or Title has '{ControlFilter}'\\n| project TimeGenerated, IncidentNumber, Title, Severity, Status,\\n          Owner=tostring(Owner.assignedTo), Labels=tostring(Labels)\\n| sort by TimeGenerated desc\",\"size\":0,\"title\":\"Active AI Governance Incidents — [SecurityIncident]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No AI governance incidents found. Expected when Modules B–G connectors are not configured or no rules have fired.\",\"noDataMessageStyle\":3},\"name\":\"soc-incidents\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"SecurityAlert\\n| where TimeGenerated > {TimeRange:start}\\n| where AlertName has_any ('AIGS','AI Governance','Content Filter','Copilot','Agent','RAI')\\n| where '{ControlFilter}' == 'All' or AlertName has '{ControlFilter}'\\n| project TimeGenerated, AlertName, AlertSeverity,\\n          Description=substring(Description,0,200), Entities=tostring(Entities)\\n| sort by TimeGenerated desc\",\"size\":0,\"title\":\"Active AI Governance Alerts — [SecurityAlert]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No AI governance alerts in the selected time range.\",\"noDataMessageStyle\":3},\"name\":\"soc-alerts\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Module A — Azure OpenAI / Foundry `GA` `AzureActivity (built-in)`\\n\\nRules deployed: **AIGS-CD001** (RAI Policy Modified) · **AIGS-CD005** (AI Resource Diagnostics Changed)\\n\\nHunts deployed: **AIGS-Hunt-AzureOpenAIRAIChanges** (Module A)\\n\\nASIM: `imAuditEvent — native` · Watchlists: `AIGS_ContentFilterPolicies`, `AIGS_ApprovedModels`\\n\\n> **AIGS-CD001** fires on `raiPolicies/write|delete` (content filter policy changes). **AIGS-CD005** fires on `diagnosticSettings/write|delete` on CognitiveServices resources (audit continuity). Hunt queries provide broader historical coverage — see hunt sections below. Model deployment events are covered by the Module E hunt (**AIGS-Hunt-AIModelDeploymentChanges**) which also surfaces Azure OpenAI/Foundry deployment activity.\",\"style\":\"success\"},\"name\":\"soc-modA-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// CONTROL: AIGS-CD001  MODULE: A — Azure OpenAI / Foundry\\n// ASIM: imAuditEvent — native  (AzureActivity maps natively to _Im_AuditEvent)\\n// Detects ARM management-plane writes to Azure OpenAI RAI (content filter) policies.\\n// Source: AzureActivity — built-in connector, no additional deployment required.\\n// Watchlist: AIGS_ContentFilterPolicies (baseline authority for approved policy names)\\nAzureActivity\\n| where TimeGenerated > {TimeRange:start}\\n| where OperationNameValue =~ 'Microsoft.CognitiveServices/accounts/raiPolicies/write'\\n| project\\n    TimeGenerated,\\n    ResourceGroup,\\n    Resource,\\n    Caller,\\n    CallerIpAddress,\\n    OperationNameValue,\\n    ActivityStatus,\\n    ActivitySubstatus,\\n    Properties=tostring(Properties)\\n| sort by TimeGenerated desc\",\"size\":0,\"title\":\"AIGS-CD001 — Content Filter Policy Changes [AzureActivity]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No content filter policy write operations detected. If Azure OpenAI resources exist, no policy changes occurred in the time range. Absence of events does NOT confirm compliant state — run the AIGS-CD005 hunt to assess posture gaps.\",\"noDataMessageStyle\":3},\"name\":\"soc-cd001\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// CONTROL: AIGS-CD005  MODULE: A — Azure OpenAI / Foundry\\n// ASIM: imAuditEvent — native  (AzureActivity maps natively to _Im_AuditEvent)\\n// Detects successful write or delete of Microsoft.Insights/diagnosticSettings\\n// on Microsoft.CognitiveServices resources (Azure OpenAI / Microsoft Foundry accounts).\\n// A delete removes audit-log forwarding entirely (HIGH); a write may reduce logged categories (MEDIUM).\\n// Source: AzureActivity — built-in connector, no additional deployment required.\\n// Response: AIGS-Auto-001-RestoreDiagnostics (approval-gated restoration).\\nlet DiagOps = dynamic([\\n    'microsoft.insights/diagnosticsettings/write',\\n    'microsoft.insights/diagnosticsettings/delete'\\n]);\\nAzureActivity\\n| where TimeGenerated > {TimeRange:start}\\n| where tolower(OperationNameValue) in (DiagOps)\\n| where ActivityStatusValue =~ 'Success'\\n| where tolower(_ResourceId) contains 'microsoft.cognitiveservices'\\n| extend\\n    AccountName   = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\\n    SettingName   = tostring(extract(@'/diagnosticsettings/([^/]+)', 1, tolower(_ResourceId))),\\n    OperationType = iff(tolower(OperationNameValue) has 'delete', 'Delete', 'Write')\\n| extend SeverityIndicator = case(\\n    OperationType == 'Delete', '🔴 HIGH — Diagnostic setting deleted; audit-log forwarding may be interrupted',\\n    OperationType == 'Write',  '🟡 MEDIUM — Diagnostic setting written; validate log categories and destinations unchanged',\\n    'INFO — Review required')\\n| project\\n    TimeGenerated,\\n    SeverityIndicator,\\n    OperationType,\\n    OperationNameValue,\\n    _ResourceId,\\n    AccountName,\\n    SettingName,\\n    Caller,\\n    CallerIpAddress,\\n    SubscriptionId,\\n    ResourceGroup,\\n    ActivityStatusValue,\\n    CorrelationId\\n| sort by TimeGenerated desc\",\"size\":0,\"title\":\"AIGS-CD005 — AI Resource Diagnostics Changed [AzureActivity]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No diagnostic-settings changes on CognitiveServices resources in the selected time range. Absence of events does NOT confirm compliant state — verify all AI resources have active diagnostic settings via Azure Portal.\",\"noDataMessageStyle\":4},\"name\":\"soc-cd005\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Module A — Hunt Queries `AzureActivity (built-in)`\\n\\nTwo hunt queries are deployed for Module A. Both use AzureActivity (no additional connector required). Hunts do not create alerts automatically — run on demand for investigation, baseline seeding, and compliance review.\\n\\n> Run the full hunt query files for watchlist-joined analysis with `AIGS_ContentFilterPolicies` and `AIGS_ApprovedModels`.\",\"style\":\"info\"},\"name\":\"soc-hunt-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// HUNT: AIGS-Hunt-AzureOpenAIRAIChanges  MODULE: A — Azure OpenAI / Foundry\\n// ASIM: imAuditEvent — native\\n// Returns all raiPolicy write/delete events for historical investigation and AIGS-CD001 baseline seeding.\\n// Workbook view: raw events. Run full hunt file for watchlist-joined analysis.\\nlet RaiPolicyOps = dynamic([\\n    'microsoft.cognitiveservices/accounts/raipolicies/write',\\n    'microsoft.cognitiveservices/accounts/raipolicies/delete'\\n]);\\nAzureActivity\\n| where TimeGenerated > {TimeRange:start}\\n| where tolower(OperationNameValue) in (RaiPolicyOps)\\n| extend\\n    AccountName   = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\\n    PolicyTarget  = tostring(extract(@'/raipolicies/([^/]+)', 1, tolower(_ResourceId))),\\n    OperationType = iff(tolower(OperationNameValue) has 'delete', 'Delete', 'Write')\\n| extend RiskSignal = case(\\n    OperationType == 'Delete' and ActivityStatusValue =~ 'Success', '🔴 HIGH — Successful delete; validate policy still present',\\n    OperationType == 'Delete',                                       '🟡 MEDIUM — Failed delete attempt; review caller intent',\\n    OperationType == 'Write' and ActivityStatusValue =~ 'Success',  '🟡 MEDIUM — Successful write; validate policy values unchanged',\\n    '🟢 LOW — Review')\\n| project TimeGenerated, RiskSignal, OperationType, ActivityStatusValue,\\n    AccountName, PolicyTarget, Caller, CallerIpAddress, SubscriptionId, ResourceGroup\\n| order by TimeGenerated desc\",\"size\":0,\"title\":\"AIGS-Hunt-AzureOpenAIRAIChanges — RAI Policy Change History [AzureActivity]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No RAI policy changes in the selected time range. Widen the range or confirm Azure OpenAI resources exist with AzureActivity diagnostic settings enabled.\",\"noDataMessageStyle\":3},\"name\":\"soc-hunt-raichanges\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// HUNT: AIGS-Hunt-AIModelDeploymentChanges  MODULE: E — Azure General\\n// ASIM: imAuditEvent — native\\n// Returns successful CognitiveServices deployments/write events for investigation.\\n// Workbook view: raw deployment events. Run full hunt file for watchlist-joined analysis.\\n// Note: AIGS-AM001 analytic rule has not been authored — no automated alert fires.\\n// Note: This hunt also surfaces Azure OpenAI/Foundry deployment activity (AzureActivity is shared).\\nAzureActivity\\n| where TimeGenerated > {TimeRange:start}\\n| where tolower(OperationNameValue) == 'microsoft.cognitiveservices/accounts/deployments/write'\\n| where ActivityStatusValue =~ 'Success'\\n| extend\\n    AccountName    = tostring(extract(@'/accounts/([^/]+)', 1, tolower(_ResourceId))),\\n    DeploymentName = tostring(extract(@'/deployments/([^/]+)', 1, tolower(_ResourceId)))\\n| project TimeGenerated, AccountName, DeploymentName, Caller, CallerIpAddress,\\n    OperationNameValue, ActivityStatusValue, SubscriptionId, ResourceGroup, _ResourceId, CorrelationId\\n| order by TimeGenerated desc\",\"size\":0,\"title\":\"AIGS-Hunt-AIModelDeploymentChanges — Model Deployment Events (Module E Hunt) [AzureActivity]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No AI model deployment events in the selected time range. If Azure OpenAI/Foundry resources exist, verify AzureActivity is ingesting CognitiveServices ARM events. Note: AIGS-AM001 analytic rule has not been authored — this is a hunt view only.\",\"noDataMessageStyle\":3},\"name\":\"soc-hunt-deployments\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Module E — Azure General `GA` `AzureActivity (built-in)`\\n\\nHunt deployed: **AIGS-Hunt-AIModelDeploymentChanges** (Module E; also surfaces Azure OpenAI/Foundry deployment events — see hunt section above)\\n\\n⚠️ **AIGS-AM001 analytic rule has not been authored.** The query below provides a SOC view of model deployment events. No alert fires automatically until the rule is authored and deployed. Absence of events does NOT confirm compliant state.\\n\\nASIM: `imAuditEvent — native` · Watchlist: `AIGS_ApprovedModels`\",\"style\":\"warning\"},\"name\":\"soc-modE-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// CONTROL: AIGS-AM001  MODULE: E — Azure General\\n// ASIM: imAuditEvent — native\\n// Detects unauthorized AI model deployments (ARM write to CognitiveServices deployments).\\n// Cross-reference with AIGS_ApprovedModels watchlist when watchlist is deployed.\\nAzureActivity\\n| where TimeGenerated > {TimeRange:start}\\n| where OperationNameValue has 'cognitiveservices'\\n      and OperationNameValue has 'deployments'\\n| project\\n    TimeGenerated,\\n    ResourceGroup,\\n    Resource,\\n    Caller,\\n    CallerIpAddress,\\n    OperationNameValue,\\n    ActivityStatus,\\n    Properties=tostring(Properties)\\n| sort by TimeGenerated desc\",\"size\":0,\"title\":\"AIGS-AM001 — AI Model Deployment Events (SOC Hunt View — Analytic Rule Not Yet Authored) [AzureActivity]\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No AI model deployment events detected in the time range. If Azure OpenAI deployments have been created, verify AzureActivity is ingesting CognitiveServices ARM events. Note: AIGS-AM001 analytic rule has not been authored — no alert fires automatically. Absence of events does NOT confirm compliant state.\",\"noDataMessageStyle\":3},\"name\":\"soc-am001\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Modules B, C, D, F, G — Planned in this Batch (Connector Required)\\n\\n| Module | Control IDs | Required Connector | Status |\\n|--------|-------------|-------------------|--------|\\n| B — Agent 365 | AIGS-PA001, AIGS-CD002 | Microsoft Defender XDR | ◻ Not Configured |\\n| C — M365 Copilot | AIGS-CD003 | Microsoft Copilot Data Connector (Preview) | ◻ Not Configured |\\n| D — Defender XDR | AIGS-CD004 | Microsoft Defender XDR + Defender for Cloud Apps | ◻ Not Configured |\\n| F — Microsoft Purview | AIGS-AM002 | Office 365 connector installed; Purview AI Hub activity needed | ⚠️ Connector Installed |\\n| G — Security Copilot | AIGS-RU001 | Copilot Data Connector + UAL opt-in + `enableSecurityCopilotModule` | 🔴 Disabled |\\n\\nThese modules are **never shown as Compliant** while connectors are absent. Data surfaces automatically once connectors are configured.\",\"style\":\"warning\"},\"name\":\"soc-planned-notice\"}]},\"conditionalVisibility\":{\"parameterName\":\"ActiveTab\",\"comparison\":\"isEqualTo\",\"value\":\"tab-soc\"},\"name\":\"tab-soc\"},{\"type\":12,\"content\":{\"version\":\"Group/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"### 🧺 Platform Health\\n**Audience:** AI Platform Admin / DevOps / Solution Admin\\n\\nModule health status, connector availability, ASIM promotion declarations, and core table telemetry freshness. Use **Module** and **Maturity** filters.\\n\\n> **isfuzzy=true pattern:** All optional-table health checks use `union isfuzzy=true`. Missing tables are silently skipped and return zero events, surfacing as **Not Configured**. No query will error due to an absent optional table.\",\"style\":\"info\"},\"name\":\"health-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// Platform Health — module status using isfuzzy=true for optional tables.\\n// Tables absent from workspace return 0 and surface as Not Configured.\\n// isfuzzy=true: missing table legs are silently skipped; no query errors.\\nlet modA = toscalar(\\n    AzureActivity | where TimeGenerated > ago(7d)\\n    | where OperationNameValue has 'cognitiveservices' | count\\n);\\nlet modB = toscalar(\\n    union isfuzzy=true\\n        (AgentsInfo | where TimeGenerated > ago(7d) | summarize n=count()),\\n        (print n=long(0))\\n    | summarize max(n)\\n);\\nlet modC = toscalar(\\n    union isfuzzy=true\\n        (CopilotActivity | where Workload != 'SecurityCopilot' | where TimeGenerated > ago(7d) | summarize n=count()),\\n        (print n=long(0))\\n    | summarize max(n)\\n);\\nlet modD = toscalar(\\n    union isfuzzy=true\\n        (CloudAppEvents | where TimeGenerated > ago(7d) | summarize n=count()),\\n        (print n=long(0))\\n    | summarize max(n)\\n);\\nlet modE = toscalar(\\n    AzureActivity | where TimeGenerated > ago(7d)\\n    | where OperationNameValue has 'cognitiveservices'\\n          and OperationNameValue has 'deployments'\\n    | count\\n);\\nlet modF = toscalar(\\n    union isfuzzy=true\\n        (OfficeActivity | where OfficeWorkload == 'Purview' | where TimeGenerated > ago(7d) | summarize n=count()),\\n        (print n=long(0))\\n    | summarize max(n)\\n);\\nlet modG = toscalar(\\n    union isfuzzy=true\\n        (CopilotActivity | where Workload == 'SecurityCopilot' | where TimeGenerated > ago(7d) | summarize n=count()),\\n        (print n=long(0))\\n    | summarize max(n)\\n);\\ndatatable(\\n    Module:string, Label:string, Maturity:string, DefaultEnabled:string,\\n    PrimaryTable:string, RequiredConnector:string, ControlIDs:string, ASIMLabel:string\\n)[\\n    'A','Azure OpenAI / Foundry','GA','Enabled',\\n        'AzureActivity','Azure Activity (built-in)','AIGS-CD001 | AIGS-CD005','imAuditEvent — native',\\n    'B','Agent 365 [Preview]','Preview','Enabled',\\n        'AgentsInfo','Microsoft Defender XDR','AIGS-PA001 | AIGS-CD002','N/A — Defender XDR inventory (no ASIM)',\\n    'C','M365 Copilot [Preview]','Preview','Enabled',\\n        'CopilotActivity','Microsoft Copilot Data Connector','AIGS-CD003','Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)',\\n    'D','Defender XDR [Preview]','Preview','Enabled',\\n        'CloudAppEvents','Microsoft Defender XDR','AIGS-CD004','N/A — cloud app events (no applicable ASIM schema)',\\n    'E','Azure General','GA','Enabled',\\n        'AzureActivity','Azure Activity (built-in)','AIGS-AM001','imAuditEvent — native',\\n    'F','Microsoft Purview [Preview]','Preview','Enabled',\\n        'OfficeActivity','Office 365 connector','AIGS-AM002','imAuditEvent — partial',\\n    'G','Security Copilot [Preview]','Preview','Disabled (default)',\\n        'CopilotActivity','Copilot Data Connector + UAL opt-in','AIGS-RU001','Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)'\\n]\\n| extend EventCount7d = case(\\n    Module == 'A', modA, Module == 'B', modB, Module == 'C', modC,\\n    Module == 'D', modD, Module == 'E', modE, Module == 'F', modF,\\n    Module == 'G', modG, long(0)\\n)\\n| extend Status = case(\\n    Module == 'G',               '\\\\U0001f534 Disabled — enableSecurityCopilotModule = false (default)',\\n    Module == 'A' and modA > 0,  '\\\\U0001f7e2 Healthy — Azure OpenAI governance events detected',\\n    Module == 'A',               '\\\\U0001f7e1 Degraded — AzureActivity present; no AI governance events (7d)',\\n    Module == 'B' and modB > 0,  '\\\\U0001f7e2 Healthy',\\n    Module == 'B',               '\\\\u25fb Not Configured — Microsoft Defender XDR connector required',\\n    Module == 'C' and modC > 0,  '\\\\U0001f7e2 Healthy',\\n    Module == 'C',               '\\\\u25fb Not Configured — Microsoft Copilot Data Connector required',\\n    Module == 'D' and modD > 0,  '\\\\U0001f7e2 Healthy',\\n    Module == 'D',               '\\\\u25fb Not Configured — Microsoft Defender XDR connector required',\\n    Module == 'E' and modE > 0,  '\\\\U0001f7e2 Healthy — Model deployment events detected',\\n    Module == 'E',               '\\\\U0001f7e1 Degraded — AzureActivity present; no model deployment events (7d)',\\n    Module == 'F' and modF > 0,  '\\\\U0001f7e2 Healthy — Purview AI Hub events detected',\\n    Module == 'F',               '\\\\u26a0\\\\ufe0f Connector Installed — No Purview AI Hub events (7d)',\\n    '\\\\u25fb Unknown'\\n)\\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\\n| where '{MaturityFilter}' == 'All' or Maturity == '{MaturityFilter}'\\n| project Module, Label, Status, EventCount7d, Maturity, DefaultEnabled,\\n          ControlIDs, ASIMLabel, RequiredConnector\\n| sort by Module asc\",\"size\":0,\"title\":\"Module Health Status — All 7 Modules\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"Module status table unavailable. Verify workspace parameter is set.\",\"noDataMessageStyle\":4},\"name\":\"health-modules\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### ASIM Promotion Declarations\\n\\nThis solution promotes ASIM where official schemas exist. Custom parsers (`AIGS_*`) are solution-specific normalization and are **NOT** ASIM-equivalent. They do not implement `_Im*` functions. Per binding implementation rule (Switch Finding 6): custom parsers must never be labeled as ASIM.\",\"style\":\"info\"},\"name\":\"health-asim-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"datatable(DataTable:string, ASIMStatus:string, ASIMFunction:string,\\n          KQLHeaderComment:string, UsedInModules:string)[\\n    'AzureActivity',    'Native ASIM',               '_Im_AuditEvent / imAuditEvent',\\n        '// ASIM: imAuditEvent — native',                                    'A, E',\\n    'AzureDiagnostics', 'No applicable ASIM',        'N/A — Cognitive Services data-plane only',\\n        '// ASIM: N/A — no Cognitive Services data-plane ASIM schema',       'A (data-plane only)',\\n    'AgentsInfo',       'No ASIM',                   'N/A — Defender XDR proprietary inventory',\\n        '// ASIM: N/A — Defender XDR agent inventory table',                 'B',\\n    'CloudAppEvents',   'No applicable ASIM',        'N/A — cloud app governance events',\\n        '// ASIM: N/A — cloud app events, no applicable ASIM schema',        'D',\\n    'CopilotActivity',  'Custom normalization only',  'AIGS_CopilotActivity_Normalized (NOT ASIM)',\\n        '// ASIM: N/A — custom parser, not _Im*-compliant',                  'C, G',\\n    'OfficeActivity',   'Partial Native ASIM',        'imAuditEvent — applicable operations',\\n        '// ASIM: imAuditEvent — partial; N/A for Purview-specific fields',  'F',\\n    'SigninLogs',       'Native ASIM',               '_Im_Authentication / imAuthentication',\\n        '// ASIM: imAuthentication — native',                                'Identity enrichment'\\n]\\n| project DataTable, ASIMStatus, ASIMFunction, KQLHeaderComment, UsedInModules\",\"size\":0,\"title\":\"ASIM Applicability per Table\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"ASIM declaration table unavailable.\",\"noDataMessageStyle\":3},\"name\":\"health-asim\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Core Table Telemetry Freshness\",\"style\":\"info\"},\"name\":\"health-freshness-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// Core tables guaranteed by Microsoft Sentinel baseline — no isfuzzy needed.\\nunion\\n    (AzureActivity    | summarize LastEvent=max(TimeGenerated)\\n     | extend TableName='AzureActivity',    Role='Required — Modules A, E'),\\n    (SecurityIncident | summarize LastEvent=max(TimeGenerated)\\n     | extend TableName='SecurityIncident',  Role='Required — SOC Operations'),\\n    (SecurityAlert    | summarize LastEvent=max(TimeGenerated)\\n     | extend TableName='SecurityAlert',     Role='Required — SOC Operations')\\n| extend AgeDays = datetime_diff('day', now(), LastEvent)\\n| extend FreshnessStatus = case(\\n    AgeDays <= 1, '\\\\U0001f7e2 Fresh (< 1 day)',\\n    AgeDays <= 7, '\\\\U0001f7e1 Stale (1–7 days)',\\n    '\\\\U0001f534 Overdue (> 7 days)'\\n  )\\n| project TableName, LastEvent, AgeDays, FreshnessStatus, Role\",\"size\":0,\"title\":\"Core Table Freshness — AzureActivity, SecurityIncident, SecurityAlert\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"Core table freshness check failed. At least one required table may be missing.\",\"noDataMessageStyle\":5},\"name\":\"health-freshness\"}]},\"conditionalVisibility\":{\"parameterName\":\"ActiveTab\",\"comparison\":\"isEqualTo\",\"value\":\"tab-health\"},\"name\":\"tab-health\"},{\"type\":12,\"content\":{\"version\":\"Group/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"### 📋 Compliance Mapping\\n**Audience:** Compliance Officer / Auditor\\n\\nControl-to-framework mapping for MCSB and NIST AI RMF. Use **Control ID** and **Module** filters to narrow.\\n\\n> ⚠️ **Compliance percentages are not computed.** Evidence status is stated explicitly (Active, Planned, Disabled). Controls dependent on connectors not yet deployed are marked **Planned** — they are not counted as compliant. Fabricated compliance scores are explicitly prohibited by solution design decisions.\",\"style\":\"warning\"},\"name\":\"compliance-header\"},{\"type\":1,\"content\":{\"json\":\"#### Microsoft Cloud Security Benchmark (MCSB) — Control Mapping\",\"style\":\"info\"},\"name\":\"compliance-mcsb-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// MCSB control mapping — evidence status only; no compliance scores computed.\\n// Control IDs are solution-owned (AIGS-*) with many-to-many framework mappings.\\ndatatable(\\n    ControlID:string, ControlName:string, Module:string,\\n    MCSBDomain:string, MCSBControlID:string, MCSBControlTitle:string,\\n    EvidenceSource:string, EvidenceStatus:string\\n)[\\n    'AIGS-CD001','Content Filter Policy Change Detection','A — Azure OpenAI/Foundry',\\n        'NS — Network Security','NS-1','Establish network segmentation boundaries',\\n        'AzureActivity (ARM events)','Active — Rule deployed',\\n    'AIGS-CD001','Content Filter Policy Change Detection','A — Azure OpenAI/Foundry',\\n        'IM — Identity Management','IM-1','Use centralized identity and authentication system',\\n        'AzureActivity (ARM events)','Active — Rule deployed',\\n    'AIGS-CD005','AI Resource Diagnostics Changed','A — Azure OpenAI/Foundry',\\n        'LT — Logging and Threat Detection','LT-3','Enable logging for security investigation',\\n        'AzureActivity (ARM events)','Active — Rule deployed',\\n    'AIGS-PA001','Agent Missing DLP Guardrail','B — Agent 365',\\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\\n    'AIGS-PA001','Agent Missing DLP Guardrail','B — Agent 365',\\n        'DP — Data Protection','DP-2','Protect sensitive data',\\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\\n    'AIGS-CD002','Agent Configuration Drift','B — Agent 365',\\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\\n        'AgentsInfo (Defender XDR)','Planned — Connector required',\\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C — M365 Copilot',\\n        'IM — Identity Management','IM-1','Centralize identity and authentication system',\\n        'CopilotActivity (Copilot Connector)','Planned — Connector required',\\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C — M365 Copilot',\\n        'IM — Identity Management','IM-8','Restrict exposure of credentials and secrets',\\n        'CopilotActivity (Copilot Connector)','Planned — Connector required',\\n    'AIGS-CD004','Unsanctioned AI App Access','D — Defender XDR',\\n        'AM — Asset Management','AM-2','Use only approved services',\\n        'CloudAppEvents (Defender XDR)','Planned — Connector required',\\n    'AIGS-AM001','Unauthorized AI Model Deployment','E — Azure General',\\n        'AM — Asset Management','AM-2','Use only approved services',\\n        'AzureActivity (hunt query)','Active — Hunt deployed; Analytic rule not yet authored',\\n    'AIGS-AM001','Unauthorized AI Model Deployment','E — Azure General',\\n        'AM — Asset Management','AM-4','Limit access to Azure resources',\\n        'AzureActivity (hunt query)','Active — Hunt deployed; Analytic rule not yet authored',\\n    'AIGS-AM002','Purview AI Hub Policy Violation','F — Microsoft Purview',\\n        'DP — Data Protection','DP-1','Discover, classify and label sensitive data',\\n        'OfficeActivity (Office 365 connector)','Planned — Needs Purview AI Hub activity',\\n    'AIGS-AM002','Purview AI Hub Policy Violation','F — Microsoft Purview',\\n        'DP — Data Protection','DP-3','Monitor anomalous data access',\\n        'OfficeActivity (Office 365 connector)','Planned — Needs Purview AI Hub activity',\\n    'AIGS-RU001','Anomalous Security Copilot Usage','G — Security Copilot',\\n        'IR — Incident Response','IR-1','Prepare an incident response plan',\\n        'CopilotActivity (Copilot Connector + UAL)','Disabled — enableSecurityCopilotModule required'\\n]\\n| where '{ControlFilter}' == 'All' or ControlID == '{ControlFilter}'\\n| where '{ModuleFilter}' == 'All' or Module startswith '{ModuleFilter}'\\n| project ControlID, ControlName, Module, MCSBDomain, MCSBControlID,\\n          MCSBControlTitle, EvidenceStatus\\n| sort by ControlID asc, MCSBControlID asc\",\"size\":0,\"title\":\"MCSB Mapping — Solution Controls → MCSB Domains\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No controls match the selected filters.\",\"noDataMessageStyle\":3},\"name\":\"compliance-mcsb\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### NIST AI Risk Management Framework — Function Mapping\\n\\nFunctions: **GOVERN** (policies & oversight) · **MAP** (risk identification) · **MEASURE** (monitoring) · **MANAGE** (risk treatment) · **RESPOND** (incident response)\",\"style\":\"info\"},\"name\":\"compliance-nist-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"// NIST AI RMF mapping — GOVERN/MAP/MANAGE/RESPOND functions.\\n// No compliance score computed. Status reflects deployment state only.\\ndatatable(\\n    ControlID:string, ControlName:string, Module:string,\\n    NISTFunction:string, NISTCategoryID:string, NISTCategoryTitle:string,\\n    DeploymentStatus:string\\n)[\\n    'AIGS-CD001','Content Filter Policy Change Detection','A',\\n        'GOVERN','GOVERN 1.1','Policies, processes, and practices are in place','Active — Deployed',\\n    'AIGS-CD001','Content Filter Policy Change Detection','A',\\n        'GOVERN','GOVERN 1.6','Policies and procedures are established for AI risk','Active — Deployed',\\n    'AIGS-CD005','AI Resource Diagnostics Changed','A',\\n        'GOVERN','GOVERN 1.3','AI risk is identified and prioritized','Active — Deployed',\\n    'AIGS-CD005','AI Resource Diagnostics Changed','A',\\n        'MAP','MAP 5.1','Likelihood of AI risk is estimated','Active — Deployed',\\n    'AIGS-PA001','Agent Missing DLP Guardrail','B',\\n        'MANAGE','MANAGE 2.2','Mechanisms to sustain and monitor AI risk responses','Planned',\\n    'AIGS-CD002','Agent Configuration Drift','B',\\n        'GOVERN','GOVERN 5.1','Organizational risk tolerance for AI is established','Planned',\\n    'AIGS-CD003','Unauthorized Copilot Plugin Added','C',\\n        'GOVERN','GOVERN 1.7','Processes to monitor AI risks on an ongoing basis','Planned',\\n    'AIGS-CD004','Unsanctioned AI App Access','D',\\n        'MAP','MAP 1.5','Organizational risk tolerances are established','Planned',\\n    'AIGS-AM001','Unauthorized AI Model Deployment','E',\\n        'GOVERN','GOVERN 4.1','AI policies are aligned with applicable laws','Active — Hunt deployed; Analytic rule not yet authored',\\n    'AIGS-AM002','Purview AI Hub Policy Violation','F',\\n        'MANAGE','MANAGE 4.1','Post-deployment AI risks and incidents are tracked','Planned',\\n    'AIGS-RU001','Anomalous Security Copilot Usage','G',\\n        'RESPOND','RESPOND 2.1','AI risk incidents are monitored, tracked and documented','Disabled',\\n    'AIGS-RU001','Anomalous Security Copilot Usage','G',\\n        'RESPOND','RESPOND 5.1','Organizational response functions for AI risk','Disabled'\\n]\\n| where '{ControlFilter}' == 'All' or ControlID == '{ControlFilter}'\\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\\n| project ControlID, ControlName, Module, NISTFunction, NISTCategoryID,\\n          NISTCategoryTitle, DeploymentStatus\\n| sort by NISTFunction asc, NISTCategoryID asc\",\"size\":0,\"title\":\"NIST AI RMF Mapping — Solution Controls → Functions & Categories\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No controls match the selected filters.\",\"noDataMessageStyle\":3},\"name\":\"compliance-nist\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Extensibility\\n\\n| Framework | v1.0 Status | Path to Add |\\n|-----------|-------------|-------------|\\n| ISO/IEC 42001 (AI Management System) | Not mapped | Add columns to mapping datatable |\\n| EU AI Act | Not mapped | Add columns to mapping datatable |\\n| Organization-specific | Not mapped | Parameterize via Watchlist `AIGS_ControlMappings` |\",\"style\":\"info\"},\"name\":\"compliance-ext-note\"}]},\"conditionalVisibility\":{\"parameterName\":\"ActiveTab\",\"comparison\":\"isEqualTo\",\"value\":\"tab-compliance\"},\"name\":\"tab-compliance\"},{\"type\":12,\"content\":{\"version\":\"Group/1.0\",\"groupType\":\"editable\",\"items\":[{\"type\":1,\"content\":{\"json\":\"### 🧩 Module Coverage\\n**Audience:** Solution Admin\\n\\nModule inventory, maturity labels, graduation status, data source inventory, and prerequisite validation. Use **Module** and **Maturity** filters.\\n\\n> **Maturity labels:** `GA` = stable, validated · `Preview` = connector-dependent, schema may change · `Disabled` = explicit opt-in required. No module can skip Preview validation.\",\"style\":\"info\"},\"name\":\"modules-header\"},{\"type\":3,\"content\":{\"version\":\"KqlItem/1.0\",\"query\":\"datatable(\\n    Module:string, Label:string, Maturity:string, DefaultEnabled:string,\\n    BatchStatus:string, PrimaryTable:string, RequiredConnector:string,\\n    ControlIDs:string, RuleCount:int, HuntCount:int,\\n    ASIMLabel:string, WatchlistDependency:string, SpecialPrerequisite:string\\n)[\\n    'A','Azure OpenAI / Foundry','GA','Enabled',\\n        'Active — Reference Module. 2 rules + 1 hunt. Rules: AIGS-CD001 (RAI Policy Modified), AIGS-CD005 (AI Resource Diagnostics Changed). Hunt: AIGS-Hunt-AzureOpenAIRAIChanges. Module E hunt (AIGS-Hunt-AIModelDeploymentChanges) also covers Module A deployment events.',\\n        'AzureActivity','Azure Activity (built-in)',\\n        'AIGS-CD001 | AIGS-CD005',2,1,\\n        'imAuditEvent — native','AIGS_ContentFilterPolicies','None — built-in connector',\\n    'B','Agent 365 [Preview]','Preview','Enabled',\\n        'Planned. AgentsInfo is snapshot/inventory; rule runs on 4h schedule (not real-time). AIAgentsInfo deprecated 2026-07-01.',\\n        'AgentsInfo','Microsoft Defender XDR',\\n        'AIGS-PA001 | AIGS-CD002',2,1,\\n        'N/A — no ASIM schema (Defender XDR proprietary)','AIGS_ApprovedAgents','Defender XDR connector; AgentsInfo Preview table',\\n    'C','M365 Copilot [Preview]','Preview','Enabled',\\n        'Planned. CopilotActivity RecordType: CreateCopilotPlugin / UpdateCopilotPlugin / DeleteCopilotPlugin.',\\n        'CopilotActivity','Microsoft Copilot Data Connector (Preview)',\\n        'AIGS-CD003',1,1,\\n        'Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)','AIGS_ApprovedCopilotPlugins','Copilot Data Connector; CopilotActivity (Preview)',\\n    'D','Defender XDR [Preview]','Preview','Enabled',\\n        'Planned. Scenario: unsanctioned AI app access (heuristic). Deterministic ActionTypes for policy drift unverified.',\\n        'CloudAppEvents','Microsoft Defender XDR',\\n        'AIGS-CD004',1,1,\\n        'N/A — no applicable ASIM schema','AIGS_DefenderXDRBaseline','Defender for Cloud Apps + Defender XDR connector',\\n    'E','Azure General','GA','Enabled',\\n        'Active. Hunt deployed: AIGS-Hunt-AIModelDeploymentChanges (Module E; also surfaces Azure OpenAI/Foundry deployment events). Analytic rule AIGS-AM001 not yet authored — Not Configured for automated alerting.',\\n        'AzureActivity','Azure Activity (built-in)',\\n        'AIGS-AM001 (hunt reference)',0,1,\\n        'imAuditEvent — native','AIGS_ApprovedModels','None — built-in connector',\\n    'F','Microsoft Purview [Preview]','Preview','Enabled',\\n        'Connector installed; no Purview AI Hub events yet. Exact Operation values for AI Hub policy violations must be verified before AIGS-AM002 is authored.',\\n        'OfficeActivity','Office 365 connector (installed)',\\n        'AIGS-AM002',1,1,\\n        'imAuditEvent — partial','AIGS_PurviewPolicies','Purview AI Hub activity; exact Operation values TBD',\\n    'G','Security Copilot [Preview]','Preview','Disabled (default)',\\n        'DISABLED by default. Requires enableSecurityCopilotModule = true, Copilot Data Connector, Security Copilot UAL opt-in, delegated OAuth (NOT UAMI), and SCU provisioning.',\\n        'CopilotActivity','Copilot Data Connector (Preview)',\\n        'AIGS-RU001',1,1,\\n        'Custom: AIGS_CopilotActivity_Normalized (NOT ASIM)','AIGS_ApprovedCopilotPlugins (shared)','enableSecurityCopilotModule opt-in; delegated OAuth exception; UAL logging toggle; SCU cost-gated'\\n]\\n| where '{ModuleFilter}' == 'All' or Module == '{ModuleFilter}'\\n| where '{MaturityFilter}' == 'All' or Maturity == '{MaturityFilter}'\\n| project Module, Label, BatchStatus, Maturity, DefaultEnabled,\\n          ControlIDs, RuleCount, HuntCount, ASIMLabel,\\n          RequiredConnector, WatchlistDependency, SpecialPrerequisite\\n| sort by Module asc\",\"size\":0,\"title\":\"Module Inventory — All 7 Modules\",\"timeContextFromParameter\":\"TimeRange\",\"queryType\":0,\"resourceType\":\"microsoft.operationalinsights/workspaces\",\"crossComponentResources\":[\"{Workspace}\"],\"visualization\":\"table\",\"noDataMessage\":\"No modules match the selected filters.\",\"noDataMessageStyle\":3},\"name\":\"modules-inventory\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Connector Installation Guide\\n\\n| Module | Connector | Location | Notes |\\n|--------|-----------|----------|-------|\\n| A, E | Azure Activity | Built-in | No action needed |\\n| B, C, D | Microsoft Defender XDR | Content Hub → Defender XDR | Requires M365 E5 or Defender for Cloud Apps |\\n| C, G | Microsoft Copilot Data Connector | Content Hub → Microsoft Copilot (Preview) | Public preview; schema may change |\\n| F | Office 365 | Content Hub → Office 365 | Installed. Activate Purview AI Hub and generate activity. |\\n| G | Security Copilot UAL | Security Copilot Owner Settings | Toggle: *Logging audit data in Microsoft Purview*. SCU provisioning required. |\\n\\n> **Module G gate:** `enableSecurityCopilotModule` ARM parameter must be `true` (default: `false`). Requires delegated OAuth credential — UAMI not supported for Security Copilot API (explicit architectural exception).\",\"style\":\"info\"},\"name\":\"modules-connector-guide\"},{\"type\":1,\"content\":{\"json\":\"---\\n#### Status Legend\\n\\n| Symbol | Meaning |\\n|--------|---------|\\n| 🟢 Healthy | Table present, recent events detected |\\n| 🟡 Degraded | Table present, no recent governance events |\\n| ◻ Not Configured | Required connector not installed |\\n| ⚠️ Connector Installed | Connector present but no relevant data yet |\\n| 🔴 Disabled | Module explicitly disabled (opt-in required) |\",\"style\":\"info\"},\"name\":\"modules-status-legend\"}]},\"conditionalVisibility\":{\"parameterName\":\"ActiveTab\",\"comparison\":\"isEqualTo\",\"value\":\"tab-modules\"},\"name\":\"tab-modules\"}]}\r\n",
+                "version": "1.0",
+                "sourceId": "[variables('workspaceResourceId')]",
+                "category": "sentinel"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('Workbook-', last(split(variables('workbookId1'),'/'))))]",
+              "properties": {
+                "description": "@{workbookKey=7b9bc9cb-c735-474a-9b4a-556e14482547; logoFileName=AIGovernance.svg; description=Monitor AI governance posture and configuration-change evidence across Microsoft AI services. Missing connectors, telemetry, and active baselines are reported as not configured rather than compliant.; dataTypesDependencies=System.Object[]; dataConnectorsDependencies=System.Object[]; previewImagesFileNames=System.Object[]; version=1.0.0; title=AI Governance Solution; templateRelativePath=AIGovernanceSolution.json; subtitle=Governance coverage, configuration drift, and response readiness; provider=x3nc0n}.description",
+                "parentId": "[variables('workbookId1')]",
+                "contentId": "[variables('_workbookContentId1')]",
+                "kind": "Workbook",
+                "version": "[variables('workbookVersion1')]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                },
+                "dependencies": {
+                  "operator": "AND",
+                  "criteria": [
+                    {
+                      "contentId": "AzureActivity",
+                      "kind": "DataType"
+                    },
+                    {
+                      "contentId": "AzureActivity",
+                      "kind": "DataConnector"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('_workbookContentId1')]",
+        "contentKind": "Workbook",
+        "displayName": "[parameters('workbook1-name')]",
+        "contentProductId": "[variables('_workbookcontentProductId1')]",
+        "id": "[variables('_workbookcontentProductId1')]",
+        "version": "[variables('workbookVersion1')]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject1').analyticRuleTemplateSpecName1]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-CD001-ProtectedRAIPolicyModified_AnalyticalRules Analytics Rule with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject1').analyticRuleVersion1]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detects successful write or delete operations against Microsoft.CognitiveServices/accounts/raiPolicies\non resources and policies explicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.\n\nFAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero\nresults. An empty or template-only watchlist does not trigger alerts. Populate the watchlist with\nat least one Status=Active row before this rule will fire.\n\nResults are labeled drift candidates requiring analyst investigation. This rule DOES NOT confirm\nthat content filter values were weakened or removed — AzureActivity carries the ARM operation event\nbut not the before-state policy body. PB-AUTO-01 cannot restore RAI policies from this alert;\nresponse is notify and investigate only.\n\nAnalyst action: Verify current raiPolicy state via Azure Portal or the REST API\n(GET .../providers/Microsoft.CognitiveServices/accounts/{name}/raiPolicies) before escalating.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional\nimAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD001\nDomain:   Configuration Drift (CD)\nResponse: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 cannot restore RAI policies;\n          AzureActivity lacks before-state policy body)\nBaseline: AIGS_ContentFilterPolicies watchlist (itemsSearchKey: ItemKey; match on AccountName + PolicyName)\nMCSB:     NS-1 (Establish network segmentation boundaries), IM-1 (Use centralised identity)\nNIST AI RMF: GOVERN-1.1, MANAGE-2.2",
+                "displayName": "[AIGS] Config Drift - Responsible AI Policy Modified",
+                "enabled": false,
+                "query": "// ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)\n// Control: AIGS-CD001\n// Data Contract: AzureActivity | OperationNameValue in raiPolicies write/delete\n//   Confirmed ARM operations (Trinity verified, 2026-07-17):\n//     microsoft.cognitiveservices/accounts/raipolicies/write\n//     microsoft.cognitiveservices/accounts/raipolicies/delete\n// Watchlist (required for any alert): AIGS_ContentFilterPolicies — Active baseline entries only\n//   itemsSearchKey: ItemKey (watchlist search index column is named ItemKey)\n//   Match keys: AccountName (AzureActivity → watchlist) + PolicyTarget == WL_PolicyName (PolicyName column)\n//   Watchlist schema (Tank-owned JSON metadata): ItemKey (itemsSearchKey), PolicyName, AccountName, ResourceId,\n//     HateSeverityThreshold, ViolenceSeverityThreshold, SelfHarmSeverityThreshold,\n//     SexualSeverityThreshold, JailbreakEnabled, IndirectAttackEnabled, Status, BaselineVersion\n// FAIL-CLOSED: inner join on AccountName + PolicyName filter — if watchlist has no Active entries,\n//   zero results produced. Empty or template-only baseline = no alerts.\n// WARNING: ARM write/delete does NOT confirm policy removal or filter weakening.\n//   All results are drift candidates requiring validation of current policy state.\n//   PB-AUTO-01 cannot restore policies — AzureActivity lacks the before-state policy body.\nlet RaiPolicyOps = dynamic([\n    \"microsoft.cognitiveservices/accounts/raipolicies/write\",\n    \"microsoft.cognitiveservices/accounts/raipolicies/delete\"\n]);\n// Load Active baseline entries only; empty result if watchlist absent or has no Active rows\n// Fail-closed: inner join below yields zero results when BaselineResources is empty\nlet BaselineResources = materialize(\n    _GetWatchlist(\"AIGS_ContentFilterPolicies\")\n    | where Status =~ \"Active\"\n    | project\n        WL_AccountName     = tolower(AccountName),\n        WL_PolicyName      = tolower(PolicyName),   // PolicyName column (ItemKey is the itemsSearchKey index column)\n        WL_HateSev         = HateSeverityThreshold,\n        WL_ViolenceSev     = ViolenceSeverityThreshold,\n        WL_JailbreakOn     = JailbreakEnabled,\n        WL_IndirectOn      = IndirectAttackEnabled\n);\nAzureActivity\n| where TimeGenerated >= ago(1h)\n| where tolower(OperationNameValue) in (RaiPolicyOps)\n| where ActivityStatusValue =~ \"Success\"\n| extend\n    // Extract CognitiveServices account name and raiPolicy name from ARM resource path\n    // Path pattern: .../accounts/{accountName}/raiPolicies/{policyName}\n    AccountName  = tostring(extract(@\"/accounts/([^/]+)\", 1, tolower(_ResourceId))),\n    PolicyTarget = tostring(extract(@\"/raipolicies/([^/]+)\", 1, tolower(_ResourceId))),\n    OperationType = iff(tolower(OperationNameValue) has \"delete\", \"Delete\", \"Write\")\n// Inner join on AccountName: events on accounts with Active baseline entries only\n// If BaselineResources is empty, inner join yields zero results (fail-closed)\n| join kind=inner (BaselineResources) on $left.AccountName == $right.WL_AccountName\n// Require the specific policy to be explicitly Active in the baseline (ItemKey match)\n// Policies not listed as Active in AIGS_ContentFilterPolicies do not trigger alerts\n| where PolicyTarget == WL_PolicyName\n| extend\n    DriftFlag = case(\n        OperationType == \"Delete\",\n            \"HIGH — Delete on Active baseline policy; validate policy still present via REST API\",\n        OperationType == \"Write\",\n            \"MEDIUM — Write on Active baseline policy; validate policy values unchanged via REST API\",\n        \"INFO — Review\"\n    ),\n    DriftCandidateNote = strcat(\n        \"Drift candidate — investigation required. \",\n        \"This alert confirms a successful ARM \", OperationType, \" on an Active baseline raiPolicy \",\n        \"(account: \", AccountName, \", policy: \", PolicyTarget, \"). \",\n        \"It does NOT confirm removal or weakening of content filters. \",\n        \"PB-AUTO-01 cannot restore this policy — AzureActivity lacks before-state. \",\n        \"Verify current policy state via Azure Portal or REST API before escalating.\"\n    )\n| project\n    TimeGenerated,\n    OperationType,\n    OperationNameValue,\n    _ResourceId,\n    AccountName,\n    PolicyTarget,\n    Caller,\n    CallerIpAddress,\n    SubscriptionId,\n    ResourceGroup,\n    ActivityStatusValue,\n    WL_PolicyName,\n    WL_HateSev,\n    WL_ViolenceSev,\n    WL_JailbreakOn,\n    DriftFlag,\n    DriftCandidateNote,\n    CorrelationId\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "severity": "High",
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [
+                  {
+                    "connectorId": "AzureActivity",
+                    "dataTypes": [
+                      "AzureActivity"
+                    ]
+                  }
+                ],
+                "tactics": [
+                  "DefenseEvasion",
+                  "Impact"
+                ],
+                "subTechniques": [
+                  "T1562.001"
+                ],
+                "techniques": [
+                  "T1562"
+                ],
+                "entityMappings": [
+                  {
+                    "fieldMappings": [
+                      {
+                        "columnName": "_ResourceId",
+                        "identifier": "ResourceId"
+                      }
+                    ],
+                    "entityType": "AzureResource"
+                  },
+                  {
+                    "fieldMappings": [
+                      {
+                        "columnName": "Caller",
+                        "identifier": "FullName"
+                      }
+                    ],
+                    "entityType": "Account"
+                  }
+                ],
+                "customDetails": {
+                  "WL_PolicyName": "WL_PolicyName",
+                  "OperationType": "OperationType",
+                  "PolicyTarget": "PolicyTarget",
+                  "DriftFlag": "DriftFlag",
+                  "AccountName": "AccountName"
+                },
+                "alertDetailsOverride": {
+                  "alertDescriptionFormat": "{{DriftFlag}} | {{DriftCandidateNote}}",
+                  "alertDisplayNameFormat": "AIGS-CD001: RAI Policy {{OperationType}} — Drift Candidate Requires Validation"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('AnalyticsRule-', last(split(variables('analyticRuleObject1').analyticRuleId1,'/'))))]",
+              "properties": {
+                "description": "Microsoft Sentinel - AI Governance Solution Analytics Rule 1",
+                "parentId": "[variables('analyticRuleObject1').analyticRuleId1]",
+                "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject1').analyticRuleVersion1]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "[AIGS] Config Drift - Responsible AI Policy Modified",
+        "contentProductId": "[variables('analyticRuleObject1')._analyticRulecontentProductId1]",
+        "id": "[variables('analyticRuleObject1')._analyticRulecontentProductId1]",
+        "version": "[variables('analyticRuleObject1').analyticRuleVersion1]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject2').analyticRuleTemplateSpecName2]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-CD005-AIResourceDiagnosticsChanged_AnalyticalRules Analytics Rule with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject2').analyticRuleVersion2]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detects successful write or delete operations against Microsoft.Insights/diagnosticSettings\non Microsoft.CognitiveServices resources (Azure OpenAI / Microsoft Foundry accounts) that are\nexplicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.\n\nFAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero\nresults. Scope is derived from the AccountName field of the content-filter baseline — accounts\nin that Active baseline are the approved AI resource set monitored by this rule.\n\nRationale for using AIGS_ContentFilterPolicies as resource scope: This watchlist tracks approved\nCognitiveServices accounts with documented governance expectations. Restricting CD005 to this\nscope avoids alerting on dev/test resources and ensures diagnostic-settings changes are only\nsurfaced for explicitly governed AI resources. The watchlist does not define expected diagnostic\nlog categories or workspace destinations; this rule scopes to the resource, not to specific\nsettings values. PB-AUTO-01 is NOT referenced as a restore action because AzureActivity does\nnot carry the before-state diagnostic settings body — no baseline-safe automatic restoration\nis possible from this alert.\n\nA delete operation removes audit-log forwarding entirely — high-severity indicator.\nA write operation may represent a legitimate change or reduction in log categories.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional\nimAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD005\nDomain:   Configuration Drift (CD)\nResponse: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 not applicable;\n          before-state diagnostic settings body unavailable from AzureActivity)\nBaseline: AIGS_ContentFilterPolicies watchlist (AccountName field; Status=Active)\nMCSB:     LT-3 (Enable logging for security investigation), LT-4 (Enable network logging)\nNIST AI RMF: GOVERN-1.3, MAP-5.1",
+                "displayName": "[AIGS] Config Drift - AI Resource Diagnostic Settings Changed",
+                "enabled": false,
+                "query": "// ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)\n// Control: AIGS-CD005\n// Data Contract: AzureActivity | Microsoft.Insights/diagnosticSettings write/delete\n//   Confirmed ARM operations (documented Azure REST API):\n//     microsoft.insights/diagnosticsettings/write\n//     microsoft.insights/diagnosticsettings/delete\n//   Resource scope: _ResourceId contains \"microsoft.cognitiveservices\" (AI resources only)\n// Baseline scope: AIGS_ContentFilterPolicies (Status=Active AccountName field)\n//   Rationale: AccountName identifies the approved AI resource set; diagnostic-settings\n//   changes on accounts NOT in this baseline are out-of-scope for this rule.\n//   Note: AIGS_ContentFilterPolicies does not define expected diagnostic log categories\n//   or workspace destinations. This rule scopes to the resource, not to specific settings values.\n//   PB-AUTO-01 NOT referenced: AzureActivity lacks the before-state settings body; no\n//   baseline-safe automatic restoration is possible from this alert.\n// FAIL-CLOSED: inner join on AccountName — if watchlist has no Active entries, zero results.\nlet DiagOps = dynamic([\n    \"microsoft.insights/diagnosticsettings/write\",\n    \"microsoft.insights/diagnosticsettings/delete\"\n]);\n// Active AI resource scope from AIGS_ContentFilterPolicies\n// Empty or no-Active entries → inner join yields zero results (fail-closed)\nlet ApprovedResources = materialize(\n    _GetWatchlist(\"AIGS_ContentFilterPolicies\")\n    | where Status =~ \"Active\"\n    | project WL_AccountName = tolower(AccountName)\n    | distinct WL_AccountName\n);\nAzureActivity\n| where TimeGenerated >= ago(1h)\n| where tolower(OperationNameValue) in (DiagOps)\n| where ActivityStatusValue =~ \"Success\"\n// Pre-filter: scope to CognitiveServices resources before join (performance + precision)\n// NOTE: Diagnostic settings operations are logged under the Microsoft.Insights provider\n//       but the _ResourceId path still contains the parent CognitiveServices account.\n| where tolower(_ResourceId) contains \"microsoft.cognitiveservices\"\n| extend\n    // Extract account name and diagnostic setting name from ARM resource path\n    // Path: .../providers/Microsoft.CognitiveServices/accounts/{acct}/providers/microsoft.insights/diagnosticSettings/{settingName}\n    AccountName   = tostring(extract(@\"/accounts/([^/]+)\", 1, tolower(_ResourceId))),\n    SettingName   = tostring(extract(@\"/diagnosticsettings/([^/]+)\", 1, tolower(_ResourceId))),\n    OperationType = iff(tolower(OperationNameValue) has \"delete\", \"Delete\", \"Write\")\n// Inner join: only accounts with Active baseline entries trigger alerts (fail-closed)\n| join kind=inner (ApprovedResources) on $left.AccountName == $right.WL_AccountName\n| extend\n    SeverityIndicator = case(\n        OperationType == \"Delete\",\n            \"HIGH — Diagnostic setting deleted on Active baseline resource; audit-log forwarding may be interrupted\",\n        OperationType == \"Write\",\n            \"MEDIUM — Diagnostic setting written on Active baseline resource; validate required log categories and destinations are preserved\",\n        \"INFO — Diagnostic setting operation on baseline resource; review required\"\n    ),\n    RemediationNote = strcat(\n        \"Notify SOC via PB-NOTIFY-01 and investigate. \",\n        \"Confirm that diagnostic setting '\", SettingName, \"' on account '\", AccountName, \"' \",\n        \"retains all required log categories (Audit, RequestResponse, Trace) \",\n        \"and forwards to the approved Log Analytics workspace. \",\n        \"PB-AUTO-01 is not applicable: AzureActivity lacks the before-state settings body; \",\n        \"restoration requires manual baseline comparison and remediation.\"\n    )\n| project\n    TimeGenerated,\n    OperationType,\n    OperationNameValue,\n    _ResourceId,\n    AccountName,\n    SettingName,\n    Caller,\n    CallerIpAddress,\n    SubscriptionId,\n    ResourceGroup,\n    ActivityStatusValue,\n    SeverityIndicator,\n    RemediationNote,\n    CorrelationId\n",
+                "queryFrequency": "PT1H",
+                "queryPeriod": "PT1H",
+                "severity": "High",
+                "suppressionDuration": "PT1H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [
+                  {
+                    "connectorId": "AzureActivity",
+                    "dataTypes": [
+                      "AzureActivity"
+                    ]
+                  }
+                ],
+                "tactics": [
+                  "DefenseEvasion"
+                ],
+                "subTechniques": [
+                  "T1562.008"
+                ],
+                "techniques": [
+                  "T1562"
+                ],
+                "entityMappings": [
+                  {
+                    "fieldMappings": [
+                      {
+                        "columnName": "_ResourceId",
+                        "identifier": "ResourceId"
+                      }
+                    ],
+                    "entityType": "AzureResource"
+                  },
+                  {
+                    "fieldMappings": [
+                      {
+                        "columnName": "Caller",
+                        "identifier": "FullName"
+                      }
+                    ],
+                    "entityType": "Account"
+                  }
+                ],
+                "customDetails": {
+                  "OperationType": "OperationType",
+                  "SettingName": "SettingName",
+                  "SeverityIndicator": "SeverityIndicator",
+                  "AccountName": "AccountName"
+                },
+                "alertDetailsOverride": {
+                  "alertDescriptionFormat": "{{SeverityIndicator}} | {{RemediationNote}}",
+                  "alertDisplayNameFormat": "AIGS-CD005: Diagnostic Settings {{OperationType}} on AI Resource — Audit Continuity at Risk"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('AnalyticsRule-', last(split(variables('analyticRuleObject2').analyticRuleId2,'/'))))]",
+              "properties": {
+                "description": "Microsoft Sentinel - AI Governance Solution Analytics Rule 2",
+                "parentId": "[variables('analyticRuleObject2').analyticRuleId2]",
+                "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject2').analyticRuleVersion2]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "[AIGS] Config Drift - AI Resource Diagnostic Settings Changed",
+        "contentProductId": "[variables('analyticRuleObject2')._analyticRulecontentProductId2]",
+        "id": "[variables('analyticRuleObject2')._analyticRulecontentProductId2]",
+        "version": "[variables('analyticRuleObject2').analyticRuleVersion2]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('huntingQueryObject1').huntingQueryTemplateSpecName1]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-Hunt-AIModelDeploymentChanges_HuntingQueries Hunting Query with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('huntingQueryObject1').huntingQueryVersion1]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/savedSearches",
+              "apiVersion": "2025-07-01",
+              "name": "Microsoft_Sentinel_-_AI_Governance_Solution_Hunting_Query_1",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "eTag": "*",
+                "displayName": "AIGS - Hunt - AI Model Deployment Changes",
+                "category": "Hunting Queries",
+                "query": "// ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)\n// Control: AIGS-AM001 (reference hunt)\n// Data Contract: AzureActivity | CognitiveServices deployments/write (Success only)\n//   ARM operations targeted:\n//     microsoft.cognitiveservices/accounts/deployments/write\n//   ActivityStatusValue == \"Success\" — avoids noise from Start/Accepted transient states\n// Watchlist (optional): AIGS_ApprovedModels — approved model names and versions\n//   DeploymentName in watchlist = the approved deployment name; ModelId = model family name\n//   Graceful degradation: if watchlist absent, all successful deployment events are surfaced\n// CAVEAT: Model name is extracted from the ARM deployment resource path (deployment name\n//   often but not always matches the model family name). Analysts should verify the actual\n//   model name from the ARM resource if the deployment name is a custom alias.\n// LOCATION CAVEAT: AzureActivity does not contain resource location.\n//   Region validation requires Azure Resource Graph correlation outside Sentinel KQL.\n//   Do not infer region from ResourceGroup — ResourceGroup is not a region proxy.\nlet LookbackPeriod = 14d;\nlet DeployOp = \"microsoft.cognitiveservices/accounts/deployments/write\";\n// Load AIGS_ApprovedModels baseline; returns empty result if watchlist not deployed\n// Watchlist schema (Tank-owned JSON metadata): ModelId (searchKey), DeploymentName, AccountName,\n//   ResourceGroupName, SubscriptionId, ApprovedVersion, MaxCapacityTPM, Region, Status, BaselineVersion\n// Note: Region column is in the watchlist schema for documentation; NOT used for filtering here\n//   because AzureActivity does not contain resource location data.\nlet ApprovedModels = materialize(\n    _GetWatchlist(\"AIGS_ApprovedModels\")\n    | where Status =~ \"Active\"\n    | project\n        AM_DeploymentName  = tolower(DeploymentName),\n        AM_ModelId         = ModelId,\n        AM_ApprovedVersion = ApprovedVersion,\n        AM_MaxCapacityTPM  = MaxCapacityTPM,\n        AM_AccountName     = tolower(AccountName)\n);\nlet WatchlistDeployed = toscalar(ApprovedModels | summarize n = count() | project n > 0);\nAzureActivity\n| where TimeGenerated >= ago(LookbackPeriod)\n| where tolower(OperationNameValue) == DeployOp\n| where ActivityStatusValue =~ \"Success\"\n| extend\n    // Extract account name and deployment name from ARM resource path\n    // Path: .../providers/Microsoft.CognitiveServices/accounts/{acct}/deployments/{deploymentName}\n    AccountName    = tostring(extract(@\"/accounts/([^/]+)\", 1, tolower(_ResourceId))),\n    DeploymentName = tostring(extract(@\"/deployments/([^/]+)\", 1, tolower(_ResourceId)))\n// Left-outer join on deployment name; matches watchlist rows where deployment name is known\n| join kind=leftouter (ApprovedModels) on $left.DeploymentName == $right.AM_DeploymentName\n| extend\n    InApprovedBaseline = isnotempty(AM_ModelId),\n    ApprovalStatus = case(\n        not(WatchlistDeployed),\n            \"INFO — Watchlist not deployed; event surfaced for baseline seeding. Baseline comparison unavailable.\",\n        not(isnotempty(AM_ModelId)),\n            \"FLAG — Deployment name not found in AIGS_ApprovedModels baseline; analyst validation required\",\n        \"IN-BASELINE — Deployment name matches approved entry; verify model version. NOTE: location validation requires Azure Resource Graph.\"\n    )\n// Scope: flag unapproved when watchlist deployed; surface all when watchlist absent\n| where not(InApprovedBaseline) or not(WatchlistDeployed)\n| project\n    TimeGenerated,\n    ApprovalStatus,\n    AccountName,\n    DeploymentName,\n    AM_ModelId,\n    AM_ApprovedVersion,\n    AM_MaxCapacityTPM,\n    Caller,\n    CallerIpAddress,\n    SubscriptionId,\n    ResourceGroup,\n    OperationNameValue,\n    ActivityStatusValue,\n    _ResourceId,\n    CorrelationId\n| order by TimeGenerated desc\n// --- Summary view (replace above project+order with this block for rollup) ---\n// | summarize\n//     TotalDeployments     = count(),\n//     UniqueAccounts       = dcount(AccountName),\n//     UniqueModels         = dcount(DeploymentName),\n//     UniqueCallers        = dcount(Caller),\n//     CallerList           = make_set(Caller, 10),\n//     ModelsDeployed       = make_set(DeploymentName, 30),\n//     FirstDeployment      = min(TimeGenerated),\n//     LastDeployment       = max(TimeGenerated)\n//     by ApprovalStatus, SubscriptionId, ResourceGroup\n// | order by TotalDeployments desc\n",
+                "version": 2,
+                "tags": [
+                  {
+                    "name": "description",
+                    "value": "Returns successful model deployment write operations on Microsoft.CognitiveServices accounts\nover the selected lookback period, cross-referenced against the AIGS_ApprovedModels watchlist.\nFlags deployments where the deployment name is not present in the approved models baseline.\n\nLOCATION VALIDATION LIMITATION: AzureActivity does not contain resource location (region).\nRegion enforcement is not possible from AzureActivity alone and requires Azure Resource Graph\ncorrelation outside Sentinel KQL. ResourceGroup is NOT a reliable region proxy.\nThis hunt surfaces deployment change evidence only; it cannot validate region compliance.\n\nWhen the AIGS_ApprovedModels watchlist is absent, all successful deployment write events\nare surfaced to support initial baseline seeding.\n\nNOTE: This hunt does not assess compliance. Without the AIGS_ApprovedModels watchlist configured,\nno baseline comparison is performed — results are change evidence only, never a compliance\ndetermination. Baseline comparison is unavailable when the watchlist is absent.\n\nCAVEAT: Deployment name (from ARM resource path) is used as model proxy. The actual model name\nlives in the ARM request body (Properties field), which is not formally documented in the\nAzureActivity schema reference. Deployment names may be custom aliases; analyst confirmation\nagainst Azure Resource Manager is required when this hunt flags a deployment.\n\nThis hunt complements AIGS-AM001 (Unauthorized AI Model Deployment) by providing a broader\nhistorical view across the full lookback window for threat hunting and compliance review.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema);\noptional imAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   E — Azure General / Model Governance\nControl:  AIGS-AM001 (reference)\nDomain:   Audit Monitoring (AM)\nDefault lookback: 14 days (adjust LookbackPeriod as needed)"
+                  },
+                  {
+                    "name": "tactics",
+                    "value": "PrivilegeEscalation,Persistence"
+                  },
+                  {
+                    "name": "techniques",
+                    "value": "T1098"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('HuntingQuery-', last(split(resourceId('Microsoft.OperationalInsights/savedSearches', variables('huntingQueryObject1')._huntingQuerycontentId1),'/'))))]",
+              "properties": {
+                "description": "Microsoft Sentinel - AI Governance Solution Hunting Query 1",
+                "parentId": "[resourceId('Microsoft.OperationalInsights/savedSearches', variables('huntingQueryObject1')._huntingQuerycontentId1)]",
+                "contentId": "[variables('huntingQueryObject1')._huntingQuerycontentId1]",
+                "kind": "HuntingQuery",
+                "version": "[variables('huntingQueryObject1').huntingQueryVersion1]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('huntingQueryObject1')._huntingQuerycontentId1]",
+        "contentKind": "HuntingQuery",
+        "displayName": "AIGS - Hunt - AI Model Deployment Changes",
+        "contentProductId": "[concat(take(variables('_solutionId'),50),'-','hq','-', uniqueString(concat(variables('_solutionId'),'-','HuntingQuery','-',variables('huntingQueryObject1')._huntingQuerycontentId1,'-', '1.0.0')))]",
+        "id": "[concat(take(variables('_solutionId'),50),'-','hq','-', uniqueString(concat(variables('_solutionId'),'-','HuntingQuery','-',variables('huntingQueryObject1')._huntingQuerycontentId1,'-', '1.0.0')))]",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('huntingQueryObject2').huntingQueryTemplateSpecName2]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-Hunt-AzureOpenAIRAIChanges_HuntingQueries Hunting Query with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('huntingQueryObject2').huntingQueryVersion2]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/savedSearches",
+              "apiVersion": "2025-07-01",
+              "name": "Microsoft_Sentinel_-_AI_Governance_Solution_Hunting_Query_2",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "eTag": "*",
+                "displayName": "AIGS - Hunt - Azure OpenAI RAI Policy Changes",
+                "category": "Hunting Queries",
+                "query": "// ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)\n// Control: AIGS-CD001 (reference hunt)\n// Data Contract: AzureActivity | raiPolicies write/delete (all outcome statuses)\n//   ARM operations targeted:\n//     microsoft.cognitiveservices/accounts/raipolicies/write\n//     microsoft.cognitiveservices/accounts/raipolicies/delete\n// Lookback default: 14 days — adjust for deeper historical investigation\n// Analyst tip: change final line to '| summarize ...' block (commented below) for per-account summary view\nlet LookbackPeriod = 14d;\nlet RaiPolicyOps = dynamic([\n    \"microsoft.cognitiveservices/accounts/raipolicies/write\",\n    \"microsoft.cognitiveservices/accounts/raipolicies/delete\"\n]);\nAzureActivity\n| where TimeGenerated >= ago(LookbackPeriod)\n| where tolower(OperationNameValue) in (RaiPolicyOps)\n| extend\n    AccountName   = tostring(extract(@\"/accounts/([^/]+)\", 1, tolower(_ResourceId))),\n    PolicyTarget  = tostring(extract(@\"/raipolicies/([^/]+)\", 1, tolower(_ResourceId))),\n    OperationType = iff(tolower(OperationNameValue) has \"delete\", \"Delete\", \"Write\")\n| extend\n    RiskSignal = case(\n        OperationType == \"Delete\" and ActivityStatusValue =~ \"Success\",\n            \"HIGH — Successful delete; validate policy still present\",\n        OperationType == \"Delete\" and ActivityStatusValue =~ \"Failure\",\n            \"MEDIUM — Failed delete attempt; review caller intent\",\n        OperationType == \"Write\" and ActivityStatusValue =~ \"Success\",\n            \"MEDIUM — Successful write; validate policy values unchanged\",\n        \"LOW — Review\"\n    )\n| project\n    TimeGenerated,\n    RiskSignal,\n    OperationType,\n    OperationNameValue,\n    ActivityStatusValue,\n    AccountName,\n    PolicyTarget,\n    Caller,\n    CallerIpAddress,\n    SubscriptionId,\n    ResourceGroup,\n    _ResourceId,\n    CorrelationId\n| order by TimeGenerated desc\n// --- Per-account summary view (replace above project+order with this block for rollup) ---\n// | summarize\n//     TotalChanges   = count(),\n//     SuccessCount   = countif(ActivityStatusValue =~ \"Success\"),\n//     DeleteCount    = countif(OperationType == \"Delete\"),\n//     UniqueCallers  = dcount(Caller),\n//     CallerList     = make_set(Caller, 10),\n//     PolicyNames    = make_set(PolicyTarget, 20),\n//     FirstChange    = min(TimeGenerated),\n//     LastChange     = max(TimeGenerated)\n//     by AccountName, SubscriptionId, ResourceGroup\n// | order by DeleteCount desc, TotalChanges desc\n",
+                "version": 2,
+                "tags": [
+                  {
+                    "name": "description",
+                    "value": "Returns all successful and failed write/delete operations against\nMicrosoft.CognitiveServices/accounts/raiPolicies over the selected lookback period.\nUse this hunt to reconstruct the history of Responsible AI (RAI) / content-filter policy\nchanges on Azure OpenAI and Microsoft Foundry accounts, identify unexpected callers,\nand seed or validate the AIGS_ContentFilterPolicies baseline watchlist.\n\nResults show individual events ordered by time, followed by a per-account change summary.\nNo watchlist is required; all raiPolicy activity is surfaced regardless of baseline state.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema);\noptional imAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD001 (reference)\nDomain:   Configuration Drift (CD)\nDefault lookback: 14 days (adjust LookbackPeriod as needed)\n\nNOTE: This hunt does not assess compliance. Without the AIGS_ContentFilterPolicies watchlist\nconfigured, no baseline comparison is performed — results are change evidence only, never a\ncompliance determination. Baseline comparison is unavailable when the watchlist is absent."
+                  },
+                  {
+                    "name": "tactics",
+                    "value": "DefenseEvasion,Impact"
+                  },
+                  {
+                    "name": "techniques",
+                    "value": "T1562.001"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('HuntingQuery-', last(split(resourceId('Microsoft.OperationalInsights/savedSearches', variables('huntingQueryObject2')._huntingQuerycontentId2),'/'))))]",
+              "properties": {
+                "description": "Microsoft Sentinel - AI Governance Solution Hunting Query 2",
+                "parentId": "[resourceId('Microsoft.OperationalInsights/savedSearches', variables('huntingQueryObject2')._huntingQuerycontentId2)]",
+                "contentId": "[variables('huntingQueryObject2')._huntingQuerycontentId2]",
+                "kind": "HuntingQuery",
+                "version": "[variables('huntingQueryObject2').huntingQueryVersion2]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('huntingQueryObject2')._huntingQuerycontentId2]",
+        "contentKind": "HuntingQuery",
+        "displayName": "AIGS - Hunt - Azure OpenAI RAI Policy Changes",
+        "contentProductId": "[concat(take(variables('_solutionId'),50),'-','hq','-', uniqueString(concat(variables('_solutionId'),'-','HuntingQuery','-',variables('huntingQueryObject2')._huntingQuerycontentId2,'-', '1.0.0')))]",
+        "id": "[concat(take(variables('_solutionId'),50),'-','hq','-', uniqueString(concat(variables('_solutionId'),'-','HuntingQuery','-',variables('huntingQueryObject2')._huntingQuerycontentId2,'-', '1.0.0')))]",
+        "version": "1.0.0"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',parameters('watchlist1-id'))]",
+      "properties": {
+        "displayName": "AIGS - Approved Content Filter Policies",
+        "provider": "x3nc0n",
+        "description": "Approved Azure OpenAI / Microsoft Foundry content filter policy configurations. Used by analytic rules to detect removal or weakening of content filter policies on deployed models. Each row defines an approved policy name and its minimum required configuration thresholds. Populate ItemKey with a unique policy identifier per row. Rows with Status=Template are shipped as schema examples and should be replaced with real policy data before relying on watchlist-based detections.",
+        "source": "Local file",
+        "itemsSearchKey": "ItemKey",
+        "contentType": "text/csv",
+        "numberOfLinesToSkip": 0,
+        "rawContent": "ItemKey,PolicyName,ResourceId,AccountName,SubscriptionId,HateSeverityThreshold,ViolenceSeverityThreshold,SelfHarmSeverityThreshold,SexualSeverityThreshold,JailbreakEnabled,IndirectAttackEnabled,Status,BaselineVersion,LastUpdated\nCFP-TEMPLATE-001,Default-Strict-TEMPLATE,/subscriptions/10000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.CognitiveServices/accounts/oai-example,oai-example,10000000-0000-0000-0000-000000000001,Low,Low,Low,Low,true,true,Template,3.0.0,2026-07-17T00:00:00Z"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',parameters('watchlist2-id'))]",
+      "properties": {
+        "displayName": "AIGS - Approved AI Models",
+        "provider": "x3nc0n",
+        "description": "Approved Azure OpenAI / Microsoft Foundry model deployments by subscription. Used by analytic rules to detect unauthorized model deployments outside this approved list. Each row defines an approved model ID, deployment name, and resource scope. Populate ItemKey with a unique model deployment identifier per row. Rows with Status=Template are shipped as schema examples and should be replaced with real deployment data before relying on watchlist-based detections.",
+        "source": "Local file",
+        "itemsSearchKey": "ItemKey",
+        "contentType": "text/csv",
+        "numberOfLinesToSkip": 0,
+        "rawContent": "ItemKey,ModelId,DeploymentName,AccountName,ResourceGroupName,SubscriptionId,ApprovedVersion,MaxCapacityTPM,Region,Status,BaselineVersion,LastUpdated\nMDL-TEMPLATE-001,gpt-4o,gpt-4o-TEMPLATE,oai-example,rg-example,10000000-0000-0000-0000-000000000001,2024-11-20,100000,eastus,Template,3.0.0,2026-07-17T00:00:00Z"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('playbookTemplateSpecName1')]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-Notify-001-TeamsAlert Playbook with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('playbookVersion1')]",
+          "parameters": {
+            "playbookName": {
+              "type": "string",
+              "defaultValue": "AIGS-Notify-001-TeamsAlert",
+              "metadata": {
+                "description": "Name of the Logic App resource."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region for Logic App and connections. Defaults to resource group location."
+              }
+            },
+            "uamiResourceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the User-Assigned Managed Identity used to authenticate to Microsoft Sentinel. Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{name}"
+              }
+            },
+            "teamsGroupId": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Teams group (team) object ID for the notification destination channel."
+              }
+            },
+            "teamsChannelId": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Teams channel ID within the group for the notification destination."
+              }
+            }
+          },
+          "variables": {
+            "azureSentinelConnectionName": "[[concat('azuresentinel-', parameters('playbookName'))]",
+            "teamsConnectionName": "[[concat('teams-', parameters('playbookName'))]",
+            "azureSentinelConnectionApiId": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuresentinel')]",
+            "teamsConnectionApiId": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/teams')]",
+            "connection-1": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuresentinel')]",
+            "_connection-1": "[[variables('connection-1')]",
+            "connection-2": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/teams')]",
+            "_connection-2": "[[variables('connection-2')]",
+            "workspace-location-inline": "[concat('[resourceGroup().locatio', 'n]')]",
+            "workspace-name": "[parameters('workspace')]",
+            "workspaceResourceId": "[[resourceId('microsoft.OperationalInsights/Workspaces', variables('workspace-name'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/connections",
+              "apiVersion": "2016-06-01",
+              "name": "[[variables('azureSentinelConnectionName')]",
+              "location": "[[parameters('location')]",
+              "kind": "V1",
+              "properties": {
+                "displayName": "[[concat('AIGS-Sentinel-', parameters('playbookName'))]",
+                "parameterValueType": "Alternative",
+                "alternativeParameterValues": {
+                  "token:TenantId": "[[subscription().tenantId]",
+                  "token:grantType": "managed_service_identity"
+                },
+                "api": {
+                  "id": "[[variables('_connection-1')]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Web/connections",
+              "apiVersion": "2016-06-01",
+              "name": "[[variables('teamsConnectionName')]",
+              "location": "[[parameters('location')]",
+              "kind": "V1",
+              "properties": {
+                "displayName": "[[concat('AIGS-Teams-Notify-', parameters('playbookName'))]",
+                "api": {
+                  "id": "[[variables('_connection-2')]"
+                }
+              },
+              "metadata": {
+                "_deploymentNote": "This Teams connection requires post-deployment OAuth authorization by a delegated account (service account or operator). The Logic App cannot post to Teams until the connection is authorized. See PREREQUISITES.md."
+              }
+            },
+            {
+              "type": "Microsoft.Logic/workflows",
+              "apiVersion": "2019-05-01",
+              "name": "[[parameters('playbookName')]",
+              "location": "[[parameters('location')]",
+              "dependsOn": [
+                "[[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+                "[[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]"
+              ],
+              "tags": {
+                "hidden-SentinelTemplateName": "AIGS-Notify-001-TeamsAlert",
+                "hidden-SentinelTemplateVersion": "0.1.0-preview.1",
+                "hidden-SentinelWorkspaceId": "[[variables('workspaceResourceId')]"
+              },
+              "identity": {
+                "type": "UserAssigned"
+              },
+              "properties": {
+                "state": "Enabled",
+                "definition": {
+                  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "$connections": {
+                      "type": "Object"
+                    },
+                    "teamsGroupId": {
+                      "defaultValue": "[[parameters('teamsGroupId')]",
+                      "type": "String"
+                    },
+                    "teamsChannelId": {
+                      "defaultValue": "[[parameters('teamsChannelId')]",
+                      "type": "String"
+                    }
+                  },
+                  "triggers": {
+                    "Microsoft_Sentinel_Incident": {
+                      "type": "ApiConnectionWebhook",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                          }
+                        },
+                        "body": {
+                          "callback_url": "@{listCallbackUrl()}"
+                        },
+                        "path": "/incident-creation"
+                      }
+                    }
+                  },
+                  "actions": {
+                    "Initialize_IncidentId": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "IncidentId",
+                            "type": "string",
+                            "value": "@triggerBody()?['object']?['name']"
+                          }
+                        ]
+                      }
+                    },
+                    "Initialize_IncidentUrl": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "IncidentUrl",
+                            "type": "string",
+                            "value": "@triggerBody()?['object']?['properties']?['incidentUrl']"
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "Initialize_IncidentId": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Post_adaptive_card_to_Teams_channel": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['teams']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/v3/beta/teams/@{encodeURIComponent(parameters('teamsGroupId'))}/channels/@{encodeURIComponent(parameters('teamsChannelId'))}/messages",
+                        "body": {
+                          "messageType": "message",
+                          "subject": "⚠️ AI Governance Alert: @{triggerBody()?['object']?['properties']?['title']}",
+                          "body": {
+                            "contentType": "html",
+                            "content": "<attachment id=\"aigs-notify-01\"></attachment>"
+                          },
+                          "attachments": [
+                            {
+                              "id": "aigs-notify-01",
+                              "contentType": "application/vnd.microsoft.card.adaptive",
+                              "content": "{\"$schema\":\"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\":\"AdaptiveCard\",\"version\":\"1.4\",\"body\":[{\"type\":\"TextBlock\",\"text\":\"⚠️ AI Governance Alert\",\"weight\":\"Bolder\",\"size\":\"Large\",\"color\":\"Attention\"},{\"type\":\"FactSet\",\"facts\":[{\"title\":\"Incident\",\"value\":\"@{triggerBody()?['object']?['properties']?['title']}\"},{\"title\":\"Severity\",\"value\":\"@{triggerBody()?['object']?['properties']?['severity']}\"},{\"title\":\"Status\",\"value\":\"@{triggerBody()?['object']?['properties']?['status']}\"},{\"title\":\"Incident ID\",\"value\":\"@{variables('IncidentId')}\"},{\"title\":\"Workspace\",\"value\":\"@{triggerBody()?['workspaceInfo']?['WorkspaceName']}\"}]},{\"type\":\"TextBlock\",\"text\":\"[View Incident in Microsoft Sentinel](@{variables('IncidentUrl')})\",\"wrap\":true}]}"
+                            }
+                          ]
+                        }
+                      },
+                      "runAfter": {
+                        "Initialize_IncidentUrl": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Add_comment_to_incident": {
+                      "type": "ApiConnection",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                          }
+                        },
+                        "method": "post",
+                        "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                        "body": {
+                          "message": "🔔 **PB-NOTIFY-01**: AI Governance Teams alert delivered to configured SOC channel at @{utcNow()}. Incident ID: @{variables('IncidentId')}. Awaiting SOC triage."
+                        }
+                      },
+                      "runAfter": {
+                        "Post_adaptive_card_to_Teams_channel": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Handle_notification_failure": {
+                      "type": "Scope",
+                      "runAfter": {
+                        "Post_adaptive_card_to_Teams_channel": [
+                          "Failed",
+                          "TimedOut"
+                        ]
+                      },
+                      "actions": {
+                        "Add_failure_comment_to_incident": {
+                          "type": "ApiConnection",
+                          "inputs": {
+                            "host": {
+                              "connection": {
+                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                              }
+                            },
+                            "method": "post",
+                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                            "body": {
+                              "message": "❌ **PB-NOTIFY-01 FAILURE**: Teams notification failed at @{utcNow()}. Check Logic App run history and verify Teams connection authorization. Manual SOC notification required."
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "parameters": {
+                  "$connections": {
+                    "value": {
+                      "azuresentinel": {
+                        "connectionId": "[[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+                        "connectionName": "[[variables('azureSentinelConnectionName')]",
+                        "id": "[[variables('azureSentinelConnectionApiId')]",
+                        "connectionProperties": {
+                          "authentication": {
+                            "type": "ManagedServiceIdentity",
+                            "identity": "[[parameters('uamiResourceId')]"
+                          }
+                        }
+                      },
+                      "teams": {
+                        "connectionId": "[[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]",
+                        "connectionName": "[[variables('teamsConnectionName')]",
+                        "id": "[[variables('teamsConnectionApiId')]"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('Playbook-', last(split(variables('playbookId1'),'/'))))]",
+              "properties": {
+                "parentId": "[variables('playbookId1')]",
+                "contentId": "[variables('_playbookContentId1')]",
+                "kind": "Playbook",
+                "version": "[variables('playbookVersion1')]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ],
+          "metadata": {
+            "title": "AIGS - Notify - Teams Alert",
+            "description": "PB-NOTIFY-01: Microsoft Sentinel incident trigger → Teams adaptive card notification → incident comment. Notification-only; no approval or automated remediation. The Logic App authenticates to Microsoft Sentinel using the provided UAMI (Microsoft Sentinel Reader). The Teams connection requires a separate OAuth delegated connection configured post-deployment.",
+            "prerequisites": "1. UAMI with Microsoft Sentinel Reader role on the target Sentinel workspace (use Bootstrap-AIGovernanceUami.ps1). 2. Microsoft Teams OAuth connection created and authorized by a service/operator account before running attached playbook rules.",
+            "lastUpdateTime": "2026-07-17T00:00:00Z",
+            "tags": [
+              "Notification",
+              "Teams",
+              "AI Governance"
+            ],
+            "releaseNotes": {
+              "version": "0.1.0-preview.1",
+              "title": "[variables('blanks')]",
+              "notes": [
+                "Initial version"
+              ]
+            }
+          }
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('_playbookContentId1')]",
+        "contentKind": "Playbook",
+        "displayName": "AIGS-Notify-001-TeamsAlert",
+        "contentProductId": "[variables('_playbookcontentProductId1')]",
+        "id": "[variables('_playbookcontentProductId1')]",
+        "version": "[variables('playbookVersion1')]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('playbookTemplateSpecName2')]",
+      "location": "[parameters('workspace-location')]",
+      "dependsOn": [
+        "[extensionResourceId(resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace')), 'Microsoft.SecurityInsights/contentPackages', variables('_solutionId'))]"
+      ],
+      "properties": {
+        "description": "AIGS-Auto-001-RestoreDiagnostics Playbook with template version 3.0.1",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('playbookVersion2')]",
+          "parameters": {
+            "playbookName": {
+              "type": "string",
+              "defaultValue": "AIGS-Auto-001-RestoreDiagnostics",
+              "metadata": {
+                "description": "Name of the Logic App resource."
+              }
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "[resourceGroup().location]",
+              "metadata": {
+                "description": "Azure region. Defaults to resource group location."
+              }
+            },
+            "uamiResourceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the User-Assigned Managed Identity. Needs Sentinel Responder on workspace and Monitoring Contributor on the target resource scope. Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{name}"
+              }
+            },
+            "teamsGroupId": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Teams group (team) object ID for the approval destination."
+              }
+            },
+            "teamsChannelId": {
+              "type": "string",
+              "metadata": {
+                "description": "Microsoft Teams channel ID for the approval card."
+              }
+            },
+            "approverGroupObjectId": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure AD object ID of the group whose members receive the approval card."
+              }
+            },
+            "approvalTimeoutMinutes": {
+              "type": "int",
+              "defaultValue": 240,
+              "minValue": 30,
+              "maxValue": 1440,
+              "metadata": {
+                "description": "Minutes to wait for approval before timeout. Default 240 (4 hours)."
+              }
+            },
+            "diagnosticsWorkspaceResourceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Log Analytics workspace for the diagnostic destination. Format: /subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.OperationalInsights/workspaces/{name}"
+              }
+            }
+          },
+          "variables": {
+            "azureSentinelConnectionName": "[[concat('azuresentinel-', parameters('playbookName'))]",
+            "teamsConnectionName": "[[concat('teams-', parameters('playbookName'))]",
+            "azureSentinelConnectionApiId": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuresentinel')]",
+            "teamsConnectionApiId": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/teams')]",
+            "approvalTimeoutISO": "[[concat('PT', string(parameters('approvalTimeoutMinutes')), 'M')]",
+            "connection-1": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/azuresentinel')]",
+            "_connection-1": "[[variables('connection-1')]",
+            "connection-2": "[[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('location'), '/managedApis/teams')]",
+            "_connection-2": "[[variables('connection-2')]",
+            "workspace-location-inline": "[concat('[resourceGroup().locatio', 'n]')]",
+            "workspace-name": "[parameters('workspace')]",
+            "workspaceResourceId": "[[resourceId('microsoft.OperationalInsights/Workspaces', variables('workspace-name'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/connections",
+              "apiVersion": "2016-06-01",
+              "name": "[[variables('azureSentinelConnectionName')]",
+              "location": "[[parameters('location')]",
+              "kind": "V1",
+              "properties": {
+                "displayName": "[[concat('AIGS-Sentinel-', parameters('playbookName'))]",
+                "parameterValueType": "Alternative",
+                "alternativeParameterValues": {
+                  "token:TenantId": "[[subscription().tenantId]",
+                  "token:grantType": "managed_service_identity"
+                },
+                "api": {
+                  "id": "[[variables('_connection-1')]"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Web/connections",
+              "apiVersion": "2016-06-01",
+              "name": "[[variables('teamsConnectionName')]",
+              "location": "[[parameters('location')]",
+              "kind": "V1",
+              "properties": {
+                "displayName": "[[concat('AIGS-Teams-Approval-', parameters('playbookName'))]",
+                "api": {
+                  "id": "[[variables('_connection-2')]"
+                }
+              },
+              "metadata": {
+                "_deploymentNote": "REQUIRED POST-DEPLOYMENT: Authorize this Teams connection in the Azure Portal before approval cards can be delivered."
+              }
+            },
+            {
+              "type": "Microsoft.Logic/workflows",
+              "apiVersion": "2019-05-01",
+              "name": "[[parameters('playbookName')]",
+              "location": "[[parameters('location')]",
+              "dependsOn": [
+                "[[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+                "[[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]"
+              ],
+              "tags": {
+                "hidden-SentinelTemplateName": "AIGS-Auto-001-RestoreDiagnostics",
+                "hidden-SentinelTemplateVersion": "0.1.0-preview.4",
+                "hidden-SentinelWorkspaceId": "[[variables('workspaceResourceId')]"
+              },
+              "identity": {
+                "type": "UserAssigned"
+              },
+              "properties": {
+                "state": "Disabled",
+                "definition": {
+                  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                  "contentVersion": "1.0.0.0",
+                  "parameters": {
+                    "$connections": {
+                      "type": "Object"
+                    },
+                    "teamsGroupId": {
+                      "defaultValue": "[[parameters('teamsGroupId')]",
+                      "type": "String"
+                    },
+                    "teamsChannelId": {
+                      "defaultValue": "[[parameters('teamsChannelId')]",
+                      "type": "String"
+                    },
+                    "approverGroupObjectId": {
+                      "defaultValue": "[[parameters('approverGroupObjectId')]",
+                      "type": "String"
+                    },
+                    "approvalTimeoutISO": {
+                      "defaultValue": "[[variables('approvalTimeoutISO')]",
+                      "type": "String"
+                    },
+                    "approvalTimeoutMinutes": {
+                      "defaultValue": "[[parameters('approvalTimeoutMinutes')]",
+                      "type": "Int"
+                    },
+                    "diagnosticsWorkspaceResourceId": {
+                      "defaultValue": "[[parameters('diagnosticsWorkspaceResourceId')]",
+                      "type": "String"
+                    },
+                    "uamiResourceId": {
+                      "defaultValue": "[[parameters('uamiResourceId')]",
+                      "type": "String"
+                    }
+                  },
+                  "triggers": {
+                    "Microsoft_Sentinel_Incident": {
+                      "type": "ApiConnectionWebhook",
+                      "inputs": {
+                        "host": {
+                          "connection": {
+                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                          }
+                        },
+                        "body": {
+                          "callback_url": "@{listCallbackUrl()}"
+                        },
+                        "path": "/incident-creation"
+                      }
+                    }
+                  },
+                  "actions": {
+                    "Initialize_IncidentId": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "IncidentId",
+                            "type": "string",
+                            "value": "@triggerBody()?['object']?['name']"
+                          }
+                        ]
+                      }
+                    },
+                    "Initialize_AffectedResourceId": {
+                      "type": "InitializeVariable",
+                      "inputs": {
+                        "variables": [
+                          {
+                            "name": "AffectedResourceId",
+                            "type": "string",
+                            "value": "[variables('blanks')]"
+                          }
+                        ]
+                      },
+                      "runAfter": {
+                        "Initialize_IncidentId": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Parse_RelatedEntities": {
+                      "type": "ParseJson",
+                      "inputs": {
+                        "content": "@coalesce(triggerBody()?['object']?['properties']?['relatedEntities'], json('[]'))",
+                        "schema": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "kind": {
+                                "type": "string"
+                              },
+                              "type": {
+                                "type": "string"
+                              },
+                              "properties": {
+                                "type": "object",
+                                "properties": {
+                                  "resourceId": {
+                                    "type": "string"
+                                  },
+                                  "subscriptionId": {
+                                    "type": "string"
+                                  },
+                                  "friendlyName": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Initialize_AffectedResourceId": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Filter_AzureResource_Entities": {
+                      "type": "Query",
+                      "inputs": {
+                        "from": "@body('Parse_RelatedEntities')",
+                        "where": "@equals(item()?['kind'], 'AzureResource')"
+                      },
+                      "runAfter": {
+                        "Parse_RelatedEntities": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Set_AffectedResourceId": {
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "AffectedResourceId",
+                        "value": "@{first(body('Filter_AzureResource_Entities'))?['properties']?['resourceId']}"
+                      },
+                      "runAfter": {
+                        "Filter_AzureResource_Entities": [
+                          "Succeeded"
+                        ]
+                      }
+                    },
+                    "Check_CD005_Rule_Gate": {
+                      "type": "If",
+                      "expression": {
+                        "contains": [
+                          "@triggerBody()?['object']?['properties']?['relatedAnalyticRuleIds']",
+                          "7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82"
+                        ]
+                      },
+                      "actions": {
+                        "Check_ResourceType_Gate": {
+                          "type": "If",
+                          "expression": {
+                            "and": [
+                              {
+                                "not": {
+                                  "equals": [
+                                    "@variables('AffectedResourceId')",
+                                    ""
+                                  ]
+                                }
+                              },
+                              {
+                                "contains": [
+                                  "@toLower(variables('AffectedResourceId'))",
+                                  "microsoft.cognitiveservices/accounts"
+                                ]
+                              }
+                            ]
+                          },
+                          "actions": {
+                            "Post_approval_card_and_wait": {
+                              "type": "ApiConnectionWebhook",
+                              "inputs": {
+                                "host": {
+                                  "connection": {
+                                    "name": "@parameters('$connections')['teams']['connectionId']"
+                                  }
+                                },
+                                "path": "/v1.0/teams/@{encodeURIComponent(parameters('teamsGroupId'))}/channels/@{encodeURIComponent(parameters('teamsChannelId'))}/onBehalfOf",
+                                "body": {
+                                  "notificationUrl": "@{listCallbackUrl()}",
+                                  "message": {
+                                    "messageType": "message",
+                                    "subject": "SENTINEL - APPROVAL REQUIRED: Restore AI Diagnostic Settings",
+                                    "attachments": [
+                                      {
+                                        "id": "aigs-auto-01-approval",
+                                        "contentType": "application/vnd.microsoft.card.adaptive",
+                                        "content": "{\"$schema\":\"http://adaptivecards.io/schemas/adaptive-card.json\",\"type\":\"AdaptiveCard\",\"version\":\"1.4\",\"body\":[{\"type\":\"TextBlock\",\"text\":\"AI Governance — Approval Required\",\"weight\":\"Bolder\",\"size\":\"Large\",\"color\":\"Attention\"},{\"type\":\"TextBlock\",\"text\":\"Diagnostic settings were removed from an AI resource. Approval is required before restoration.\",\"wrap\":true},{\"type\":\"FactSet\",\"facts\":[{\"title\":\"Incident\",\"value\":\"@{triggerBody()?['object']?['properties']?['title']}\"},{\"title\":\"Severity\",\"value\":\"@{triggerBody()?['object']?['properties']?['severity']}\"},{\"title\":\"Resource\",\"value\":\"@{variables('AffectedResourceId')}\"},{\"title\":\"Incident ID\",\"value\":\"@{variables('IncidentId')}\"},{\"title\":\"Expires\",\"value\":\"@{addMinutes(utcNow(), parameters('approvalTimeoutMinutes'))} UTC\"}]},{\"type\":\"TextBlock\",\"text\":\"Approving ensures only the dedicated AIGS-Required-Diagnostics diagnostic setting is present with categoryGroup allLogs and category AllMetrics to the designated workspace. No other diagnostic settings are modified.\",\"wrap\":true}],\"actions\":[{\"type\":\"Action.Submit\",\"title\":\"Approve — Ensure Diagnostics\",\"data\":{\"actionResult\":\"Approved\",\"incidentId\":\"@{variables('IncidentId')}\"}},{\"type\":\"Action.Submit\",\"title\":\"Reject — Do Not Restore\",\"data\":{\"actionResult\":\"Rejected\",\"incidentId\":\"@{variables('IncidentId')}\"}}]}"
+                                      }
+                                    ]
+                                  }
+                                }
+                              },
+                              "limit": {
+                                "timeout": "@parameters('approvalTimeoutISO')"
+                              }
+                            },
+                            "Check_approval_result": {
+                              "type": "Switch",
+                              "expression": "@body('Post_approval_card_and_wait')?['data']?['actionResult']",
+                              "cases": {
+                                "Approved": {
+                                  "case": "Approved",
+                                  "actions": {
+                                    "GET_Diagnostic_Setting": {
+                                      "type": "Http",
+                                      "inputs": {
+                                        "method": "GET",
+                                        "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                        "authentication": {
+                                          "type": "ManagedServiceIdentity",
+                                          "identity": "@parameters('uamiResourceId')",
+                                          "audience": "https://management.azure.com"
+                                        }
+                                      },
+                                      "limit": {
+                                        "timeout": "PT60S"
+                                      }
+                                    },
+                                    "Filter_Logs_Enabled": {
+                                      "type": "Query",
+                                      "inputs": {
+                                        "from": "@coalesce(body('GET_Diagnostic_Setting')?['properties']?['logs'], json('[]'))",
+                                        "where": "@and(equals(item()?['categoryGroup'], 'allLogs'), equals(item()?['enabled'], true))"
+                                      },
+                                      "runAfter": {
+                                        "GET_Diagnostic_Setting": [
+                                          "Succeeded"
+                                        ]
+                                      }
+                                    },
+                                    "Filter_Metrics_Enabled": {
+                                      "type": "Query",
+                                      "inputs": {
+                                        "from": "@coalesce(body('GET_Diagnostic_Setting')?['properties']?['metrics'], json('[]'))",
+                                        "where": "@and(equals(item()?['category'], 'AllMetrics'), equals(item()?['enabled'], true))"
+                                      },
+                                      "runAfter": {
+                                        "Filter_Logs_Enabled": [
+                                          "Succeeded"
+                                        ]
+                                      }
+                                    },
+                                    "Check_GET_Compliant": {
+                                      "type": "If",
+                                      "expression": {
+                                        "and": [
+                                          {
+                                            "equals": [
+                                              "@toLower(coalesce(body('GET_Diagnostic_Setting')?['properties']?['workspaceId'], ''))",
+                                              "@toLower(parameters('diagnosticsWorkspaceResourceId'))"
+                                            ]
+                                          },
+                                          {
+                                            "greater": [
+                                              "@length(body('Filter_Logs_Enabled'))",
+                                              0
+                                            ]
+                                          },
+                                          {
+                                            "greater": [
+                                              "@length(body('Filter_Metrics_Enabled'))",
+                                              0
+                                            ]
+                                          }
+                                        ]
+                                      },
+                                      "actions": {
+                                        "Add_Already_Compliant_Comment": {
+                                          "type": "ApiConnection",
+                                          "inputs": {
+                                            "host": {
+                                              "connection": {
+                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                              }
+                                            },
+                                            "method": "post",
+                                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                            "body": {
+                                              "message": "✅ **PB-AUTO-01 ALREADY COMPLIANT**: Diagnostic setting AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} verified at @{utcNow()} — workspaceId matches, allLogs enabled=true entry confirmed, AllMetrics enabled=true entry confirmed. No PUT performed."
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "else": {
+                                        "actions": {
+                                          "PUT_Diagnostic_Setting": {
+                                            "type": "Http",
+                                            "inputs": {
+                                              "method": "PUT",
+                                              "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                              "headers": {
+                                                "Content-Type": "application/json"
+                                              },
+                                              "body": {
+                                                "properties": {
+                                                  "workspaceId": "@parameters('diagnosticsWorkspaceResourceId')",
+                                                  "logs": [
+                                                    {
+                                                      "categoryGroup": "allLogs",
+                                                      "enabled": true
+                                                    }
+                                                  ],
+                                                  "metrics": [
+                                                    {
+                                                      "category": "AllMetrics",
+                                                      "enabled": true
+                                                    }
+                                                  ]
+                                                }
+                                              },
+                                              "authentication": {
+                                                "type": "ManagedServiceIdentity",
+                                                "identity": "@parameters('uamiResourceId')",
+                                                "audience": "https://management.azure.com"
+                                              }
+                                            }
+                                          },
+                                          "Add_Success_Comment": {
+                                            "type": "ApiConnection",
+                                            "inputs": {
+                                              "host": {
+                                                "connection": {
+                                                  "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                }
+                                              },
+                                              "method": "post",
+                                              "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                              "body": {
+                                                "message": "✅ **PB-AUTO-01 RESTORED**: Diagnostic setting AIGS-Required-Diagnostics ensured on @{variables('AffectedResourceId')} at @{utcNow()}. categoryGroup allLogs and category AllMetrics enabled to workspace @{parameters('diagnosticsWorkspaceResourceId')}. No other diagnostic settings were modified."
+                                              }
+                                            },
+                                            "runAfter": {
+                                              "PUT_Diagnostic_Setting": [
+                                                "Succeeded"
+                                              ]
+                                            }
+                                          },
+                                          "Add_ARM_Failure_Comment": {
+                                            "type": "ApiConnection",
+                                            "inputs": {
+                                              "host": {
+                                                "connection": {
+                                                  "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                }
+                                              },
+                                              "method": "post",
+                                              "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                              "body": {
+                                                "message": "🔴 **PB-AUTO-01 ARM FAILURE**: PUT of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} failed at @{utcNow()}. Run ID: @{workflow()['run']['name']}. Verify UAMI Monitoring Contributor on resource scope. Manual remediation required."
+                                              }
+                                            },
+                                            "runAfter": {
+                                              "PUT_Diagnostic_Setting": [
+                                                "Failed"
+                                              ]
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "Filter_Metrics_Enabled": [
+                                          "Succeeded"
+                                        ]
+                                      }
+                                    },
+                                    "Check_GET_404": {
+                                      "type": "If",
+                                      "expression": {
+                                        "equals": [
+                                          "@outputs('GET_Diagnostic_Setting')?['statusCode']",
+                                          404
+                                        ]
+                                      },
+                                      "actions": {
+                                        "PUT_Diagnostic_Setting_NotFound": {
+                                          "type": "Http",
+                                          "inputs": {
+                                            "method": "PUT",
+                                            "uri": "https://management.azure.com@{variables('AffectedResourceId')}/providers/microsoft.insights/diagnosticSettings/AIGS-Required-Diagnostics?api-version=2021-05-01-preview",
+                                            "headers": {
+                                              "Content-Type": "application/json"
+                                            },
+                                            "body": {
+                                              "properties": {
+                                                "workspaceId": "@parameters('diagnosticsWorkspaceResourceId')",
+                                                "logs": [
+                                                  {
+                                                    "categoryGroup": "allLogs",
+                                                    "enabled": true
+                                                  }
+                                                ],
+                                                "metrics": [
+                                                  {
+                                                    "category": "AllMetrics",
+                                                    "enabled": true
+                                                  }
+                                                ]
+                                              }
+                                            },
+                                            "authentication": {
+                                              "type": "ManagedServiceIdentity",
+                                              "identity": "@parameters('uamiResourceId')",
+                                              "audience": "https://management.azure.com"
+                                            }
+                                          }
+                                        },
+                                        "Add_Created_Comment": {
+                                          "type": "ApiConnection",
+                                          "inputs": {
+                                            "host": {
+                                              "connection": {
+                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                              }
+                                            },
+                                            "method": "post",
+                                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                            "body": {
+                                              "message": "✅ **PB-AUTO-01 CREATED**: Diagnostic setting AIGS-Required-Diagnostics did not exist (GET returned 404); created on @{variables('AffectedResourceId')} at @{utcNow()}. categoryGroup allLogs and category AllMetrics enabled to workspace @{parameters('diagnosticsWorkspaceResourceId')}. No other diagnostic settings were modified."
+                                            }
+                                          },
+                                          "runAfter": {
+                                            "PUT_Diagnostic_Setting_NotFound": [
+                                              "Succeeded"
+                                            ]
+                                          }
+                                        },
+                                        "Add_ARM_Failure_Comment_NotFound": {
+                                          "type": "ApiConnection",
+                                          "inputs": {
+                                            "host": {
+                                              "connection": {
+                                                "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                              }
+                                            },
+                                            "method": "post",
+                                            "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                            "body": {
+                                              "message": "🔴 **PB-AUTO-01 ARM FAILURE**: PUT of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} failed at @{utcNow()}. Run ID: @{workflow()['run']['name']}. Verify UAMI Monitoring Contributor on resource scope. Manual remediation required."
+                                            }
+                                          },
+                                          "runAfter": {
+                                            "PUT_Diagnostic_Setting_NotFound": [
+                                              "Failed"
+                                            ]
+                                          }
+                                        }
+                                      },
+                                      "else": {
+                                        "actions": {
+                                          "Add_GET_NonRetryable_Failure_Comment": {
+                                            "type": "ApiConnection",
+                                            "inputs": {
+                                              "host": {
+                                                "connection": {
+                                                  "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                                }
+                                              },
+                                              "method": "post",
+                                              "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                              "body": {
+                                                "message": "🔴 **PB-AUTO-01 GET FAILED — FAIL CLOSED**: GET of AIGS-Required-Diagnostics on @{variables('AffectedResourceId')} returned status @{outputs('GET_Diagnostic_Setting')?['statusCode']} at @{utcNow()}. This is not a 404 (setting not found) — possible 403 (access denied), 429 (throttled), or 5xx (service error). No PUT performed. Run ID: @{workflow()['run']['name']}. Manual investigation required."
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "runAfter": {
+                                        "GET_Diagnostic_Setting": [
+                                          "Failed",
+                                          "TimedOut"
+                                        ]
+                                      }
+                                    }
+                                  }
+                                },
+                                "Rejected": {
+                                  "case": "Rejected",
+                                  "actions": {
+                                    "Add_Rejection_Comment": {
+                                      "type": "ApiConnection",
+                                      "inputs": {
+                                        "host": {
+                                          "connection": {
+                                            "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                          }
+                                        },
+                                        "method": "post",
+                                        "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                        "body": {
+                                          "message": "❌ **PB-AUTO-01 REJECTED**: Approver declined restoration at @{utcNow()}. No changes made to @{variables('AffectedResourceId')}. Incident remains Active for manual SOC triage."
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "default": {
+                                "actions": {
+                                  "Add_Unexpected_Comment": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                      "host": {
+                                        "connection": {
+                                          "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                        }
+                                      },
+                                      "method": "post",
+                                      "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                      "body": {
+                                        "message": "⚠️ **PB-AUTO-01 UNEXPECTED RESPONSE**: Approval card returned unrecognized actionResult at @{utcNow()}: '@{body(''Post_approval_card_and_wait'')?[''data'']?[''actionResult'']}'. No changes made. Incident escalated for manual SOC review."
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Post_approval_card_and_wait": [
+                                  "Succeeded"
+                                ]
+                              }
+                            },
+                            "Handle_approval_timeout": {
+                              "type": "Scope",
+                              "actions": {
+                                "Add_Timeout_Comment": {
+                                  "type": "ApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                      }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                    "body": {
+                                      "message": "⏱️ **PB-AUTO-01 TIMED OUT**: Approval window (@{parameters('approvalTimeoutISO')}) expired at @{utcNow()}. No changes made to @{variables('AffectedResourceId')}. Incident remains Active. Manual SOC triage required."
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Post_approval_card_and_wait": [
+                                  "TimedOut"
+                                ]
+                              }
+                            },
+                            "Handle_approval_failed": {
+                              "type": "Scope",
+                              "actions": {
+                                "Add_Teams_Failed_Comment": {
+                                  "type": "ApiConnection",
+                                  "inputs": {
+                                    "host": {
+                                      "connection": {
+                                        "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                      }
+                                    },
+                                    "method": "post",
+                                    "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                    "body": {
+                                      "message": "🔴 **PB-AUTO-01 TEAMS DELIVERY FAILED**: Approval card could not be delivered at @{utcNow()}. Verify Teams connection is authorized (delegated OAuth) and teamsGroupId/teamsChannelId are correct. No changes made. Manual remediation required."
+                                    }
+                                  }
+                                }
+                              },
+                              "runAfter": {
+                                "Post_approval_card_and_wait": [
+                                  "Failed"
+                                ]
+                              }
+                            }
+                          },
+                          "else": {
+                            "actions": {
+                              "Add_Invalid_ResourceType_Comment": {
+                                "type": "ApiConnection",
+                                "inputs": {
+                                  "host": {
+                                    "connection": {
+                                      "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                    }
+                                  },
+                                  "method": "post",
+                                  "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                                  "body": {
+                                    "message": "🚫 **PB-AUTO-01 RESOURCE TYPE GATE FAILED**: No AzureResource entity of type Microsoft.CognitiveServices/accounts found in relatedEntities at @{utcNow()}. Extracted resourceId: '@{variables(''AffectedResourceId'')}'. This playbook only remediates CognitiveServices accounts. No action taken."
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "else": {
+                        "actions": {
+                          "Add_Wrong_Rule_Comment": {
+                            "type": "ApiConnection",
+                            "inputs": {
+                              "host": {
+                                "connection": {
+                                  "name": "@parameters('$connections')['azuresentinel']['connectionId']"
+                                }
+                              },
+                              "method": "post",
+                              "path": "/Incidents/subscriptions/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['SubscriptionId'])}/resourceGroups/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['ResourceGroupName'])}/workspaces/@{encodeURIComponent(triggerBody()?['workspaceInfo']?['WorkspaceName'])}/incidents/@{encodeURIComponent(variables('IncidentId'))}/comments",
+                              "body": {
+                                "message": "🚫 **PB-AUTO-01 RULE GATE FAILED**: relatedAnalyticRuleIds does not contain the required CD005 rule GUID (7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82) at @{utcNow()}. This playbook is scoped exclusively to CD005 incidents. No action taken."
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "runAfter": {
+                        "Set_AffectedResourceId": [
+                          "Succeeded"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "parameters": {
+                  "$connections": {
+                    "value": {
+                      "azuresentinel": {
+                        "connectionId": "[[resourceId('Microsoft.Web/connections', variables('azureSentinelConnectionName'))]",
+                        "connectionName": "[[variables('azureSentinelConnectionName')]",
+                        "id": "[[variables('azureSentinelConnectionApiId')]",
+                        "connectionProperties": {
+                          "authentication": {
+                            "type": "ManagedServiceIdentity",
+                            "identity": "[[parameters('uamiResourceId')]"
+                          }
+                        }
+                      },
+                      "teams": {
+                        "connectionId": "[[resourceId('Microsoft.Web/connections', variables('teamsConnectionName'))]",
+                        "connectionName": "[[variables('teamsConnectionName')]",
+                        "id": "[[variables('teamsConnectionApiId')]"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/',concat('Playbook-', last(split(variables('playbookId2'),'/'))))]",
+              "properties": {
+                "parentId": "[variables('playbookId2')]",
+                "contentId": "[variables('_playbookContentId2')]",
+                "kind": "Playbook",
+                "version": "[variables('playbookVersion2')]",
+                "source": {
+                  "kind": "Solution",
+                  "name": "Microsoft Sentinel - AI Governance Solution",
+                  "sourceId": "[variables('_solutionId')]"
+                },
+                "author": {
+                  "name": "x3nc0n"
+                },
+                "support": {
+                  "name": "x3nc0n",
+                  "email": "",
+                  "tier": "Community",
+                  "link": "https://github.com/x3nc0n"
+                }
+              }
+            }
+          ],
+          "metadata": {
+            "title": "AIGS - Auto - Restore Diagnostics",
+            "description": "PB-AUTO-01: Sentinel incident trigger → CD005 rule-ID gate → CognitiveServices resource-type gate → Teams approval (delegated OAuth, separate from UAMI) → GET AIGS-Required-Diagnostics diagnostic setting → already-compliant short-circuit (no PUT) → PUT ENSURE only the dedicated named setting → incident comment. Azure ARM calls use UAMI HTTP MSI auth. Teams uses a separate delegated OAuth connection.",
+            "prerequisites": "1. UAMI with Sentinel Responder on workspace and Monitoring Contributor on the target resource scope. 2. Microsoft Teams OAuth connection authorized post-deployment. 3. Approver group object ID.",
+            "lastUpdateTime": "2026-07-22T00:00:00Z",
+            "tags": [
+              "AutoRemediation",
+              "DiagnosticSettings",
+              "Teams",
+              "AI Governance"
+            ],
+            "releaseNotes": {
+              "version": "0.1.0-preview.4",
+              "title": "[variables('blanks')]",
+              "notes": [
+                "Initial version"
+              ]
+            }
+          }
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('_playbookContentId2')]",
+        "contentKind": "Playbook",
+        "displayName": "AIGS-Auto-001-RestoreDiagnostics",
+        "contentProductId": "[variables('_playbookcontentProductId2')]",
+        "id": "[variables('_playbookcontentProductId2')]",
+        "version": "[variables('playbookVersion2')]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+      "apiVersion": "2023-04-01-preview",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "version": "3.0.1",
+        "kind": "Solution",
+        "contentSchemaVersion": "3.0.0",
+        "displayName": "Microsoft Sentinel - AI Governance Solution",
+        "publisherDisplayName": "x3nc0n",
+        "descriptionHtml": "<p><strong>Note:</strong> Please refer to the following before installing the solution:</p>\n<p>• Review the solution <a href=\"https://github.com/Azure/Azure-Sentinel/tree/master/Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/ReleaseNotes.md\">Release Notes</a></p>\n<p>• There may be <a href=\"https://aka.ms/sentinelsolutionsknownissues\">known issues</a> pertaining to this Solution, please refer to them before installing.</p>\n<p>AI governance monitoring and automated response across Microsoft AI services. Provides detection, alerting, and approval-gated remediation for configuration drift, posture violations, unauthorized model deployments, and anomalous AI usage patterns.</p>\n<p><strong>Workbooks:</strong> 1, <strong>Analytic Rules:</strong> 2, <strong>Hunting Queries:</strong> 2, <strong>Watchlists:</strong> 2, <strong>Playbooks:</strong> 2</p>\n<p><a href=\"https://aka.ms/azuresentinel\">Learn more about Microsoft Sentinel</a> | <a href=\"https://aka.ms/azuresentinelsolutionsdoc\">Learn more about Solutions</a></p>\n",
+        "contentKind": "Solution",
+        "contentProductId": "[variables('_solutioncontentProductId')]",
+        "id": "[variables('_solutioncontentProductId')]",
+        "icon": "<img src=\"https://raw.githubusercontent.com/x3nc0n/secure-ai-adotpion-accelerator/main/Logos/AIGovernance.svg\" width=\"75px\" height=\"75px\">",
+        "contentId": "[variables('_solutionId')]",
+        "parentId": "[variables('_solutionId')]",
+        "source": {
+          "kind": "Solution",
+          "name": "Microsoft Sentinel - AI Governance Solution",
+          "sourceId": "[variables('_solutionId')]"
+        },
+        "author": {
+          "name": "x3nc0n"
+        },
+        "support": {
+          "name": "x3nc0n",
+          "tier": "Community",
+          "link": "https://github.com/x3nc0n"
+        },
+        "dependencies": {
+          "operator": "AND",
+          "criteria": [
+            {
+              "kind": "Workbook",
+              "contentId": "[variables('_workbookContentId1')]",
+              "version": "[variables('workbookVersion1')]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+              "version": "[variables('analyticRuleObject1').analyticRuleVersion1]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+              "version": "[variables('analyticRuleObject2').analyticRuleVersion2]"
+            },
+            {
+              "kind": "HuntingQuery",
+              "contentId": "[variables('huntingQueryObject1')._huntingQuerycontentId1]",
+              "version": "[variables('huntingQueryObject1').huntingQueryVersion1]"
+            },
+            {
+              "kind": "HuntingQuery",
+              "contentId": "[variables('huntingQueryObject2')._huntingQuerycontentId2]",
+              "version": "[variables('huntingQueryObject2').huntingQueryVersion2]"
+            },
+            {
+              "kind": "Watchlist",
+              "contentId": "[variables('_AIGS - Approved Content Filter Policies')]",
+              "version": "3.0.1"
+            },
+            {
+              "kind": "Watchlist",
+              "contentId": "[variables('_AIGS - Approved AI Models')]",
+              "version": "3.0.1"
+            },
+            {
+              "kind": "Playbook",
+              "contentId": "[variables('_AIGS-Notify-001-TeamsAlert')]",
+              "version": "[variables('playbookVersion1')]"
+            },
+            {
+              "kind": "Playbook",
+              "contentId": "[variables('_AIGS-Auto-001-RestoreDiagnostics')]",
+              "version": "[variables('playbookVersion2')]"
+            }
+          ]
+        },
+        "firstPublishDate": "2026-07-17",
+        "providers": [
+          "Microsoft"
+        ],
+        "categories": {
+          "domains": [
+            "Security - Governance, Risk, Compliance",
+            "Application"
+          ]
+        }
+      },
+      "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/', variables('_solutionId'))]"
+    }
+  ],
+  "outputs": {}
+}

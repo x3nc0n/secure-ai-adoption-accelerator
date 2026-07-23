@@ -1,0 +1,97 @@
+id: a9d5e3b7-2c1f-4d8a-e6b4-3f7c9a0d2e51
+name: "AIGS - Hunt - Azure OpenAI RAI Policy Changes"
+description: |
+  Returns all successful and failed write/delete operations against
+  Microsoft.CognitiveServices/accounts/raiPolicies over the selected lookback period.
+  Use this hunt to reconstruct the history of Responsible AI (RAI) / content-filter policy
+  changes on Azure OpenAI and Microsoft Foundry accounts, identify unexpected callers,
+  and seed or validate the AIGS_ContentFilterPolicies baseline watchlist.
+
+  Results show individual events ordered by time, followed by a per-account change summary.
+  No watchlist is required; all raiPolicy activity is surfaced regardless of baseline state.
+
+  ASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema);
+  optional imAuditEvent mapping available. No custom parser required; no false ASIM claim.
+
+  Module:   A — Azure OpenAI / Microsoft Foundry
+  Control:  AIGS-CD001 (reference)
+  Domain:   Configuration Drift (CD)
+  Default lookback: 14 days (adjust LookbackPeriod as needed)
+
+  NOTE: This hunt does not assess compliance. Without the AIGS_ContentFilterPolicies watchlist
+  configured, no baseline comparison is performed — results are change evidence only, never a
+  compliance determination. Baseline comparison is unavailable when the watchlist is absent.
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+tactics:
+  - DefenseEvasion
+  - Impact
+relevantTechniques:
+  - T1562.001
+tags:
+  - Module-A
+  - AzureOpenAI
+  - Foundry
+  - RAIPolicy
+  - ContentFilter
+  - ConfigDrift
+query: |
+  // ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)
+  // Control: AIGS-CD001 (reference hunt)
+  // Data Contract: AzureActivity | raiPolicies write/delete (all outcome statuses)
+  //   ARM operations targeted:
+  //     microsoft.cognitiveservices/accounts/raipolicies/write
+  //     microsoft.cognitiveservices/accounts/raipolicies/delete
+  // Lookback default: 14 days — adjust for deeper historical investigation
+  // Analyst tip: change final line to '| summarize ...' block (commented below) for per-account summary view
+  let LookbackPeriod = 14d;
+  let RaiPolicyOps = dynamic([
+      "microsoft.cognitiveservices/accounts/raipolicies/write",
+      "microsoft.cognitiveservices/accounts/raipolicies/delete"
+  ]);
+  AzureActivity
+  | where TimeGenerated >= ago(LookbackPeriod)
+  | where tolower(OperationNameValue) in (RaiPolicyOps)
+  | extend
+      AccountName   = tostring(extract(@"/accounts/([^/]+)", 1, tolower(_ResourceId))),
+      PolicyTarget  = tostring(extract(@"/raipolicies/([^/]+)", 1, tolower(_ResourceId))),
+      OperationType = iff(tolower(OperationNameValue) has "delete", "Delete", "Write")
+  | extend
+      RiskSignal = case(
+          OperationType == "Delete" and ActivityStatusValue =~ "Success",
+              "HIGH — Successful delete; validate policy still present",
+          OperationType == "Delete" and ActivityStatusValue =~ "Failure",
+              "MEDIUM — Failed delete attempt; review caller intent",
+          OperationType == "Write" and ActivityStatusValue =~ "Success",
+              "MEDIUM — Successful write; validate policy values unchanged",
+          "LOW — Review"
+      )
+  | project
+      TimeGenerated,
+      RiskSignal,
+      OperationType,
+      OperationNameValue,
+      ActivityStatusValue,
+      AccountName,
+      PolicyTarget,
+      Caller,
+      CallerIpAddress,
+      SubscriptionId,
+      ResourceGroup,
+      _ResourceId,
+      CorrelationId
+  | order by TimeGenerated desc
+  // --- Per-account summary view (replace above project+order with this block for rollup) ---
+  // | summarize
+  //     TotalChanges   = count(),
+  //     SuccessCount   = countif(ActivityStatusValue =~ "Success"),
+  //     DeleteCount    = countif(OperationType == "Delete"),
+  //     UniqueCallers  = dcount(Caller),
+  //     CallerList     = make_set(Caller, 10),
+  //     PolicyNames    = make_set(PolicyTarget, 20),
+  //     FirstChange    = min(TimeGenerated),
+  //     LastChange     = max(TimeGenerated)
+  //     by AccountName, SubscriptionId, ResourceGroup
+  // | order by DeleteCount desc, TotalChanges desc

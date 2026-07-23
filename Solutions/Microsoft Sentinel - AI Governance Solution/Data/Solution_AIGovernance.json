@@ -1,0 +1,36 @@
+{
+  "Name": "Microsoft Sentinel - AI Governance Solution",
+  "Author": "x3nc0n",
+  "Logo": "<img src=\"https://raw.githubusercontent.com/x3nc0n/secure-ai-adotpion-accelerator/main/Logos/AIGovernance.svg\" width=\"75px\" height=\"75px\">",
+  "Description": "AI governance monitoring and automated response across Microsoft AI services. Provides detection, alerting, and approval-gated remediation for configuration drift, posture violations, unauthorized model deployments, and anomalous AI usage patterns.",
+  "BasePath": "Solutions/Microsoft Sentinel - AI Governance Solution",
+  "Workbooks": [
+    "Workbooks/AIGovernanceSolution.json"
+  ],
+  "Analytic Rules": [
+    "Analytic Rules/AIGS-CD001-ProtectedRAIPolicyModified.yaml",
+    "Analytic Rules/AIGS-CD005-AIResourceDiagnosticsChanged.yaml"
+  ],
+  "Hunting Queries": [
+    "Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml",
+    "Hunting Queries/AIGS-Hunt-AzureOpenAIRAIChanges.yaml"
+  ],
+  "Watchlists": [
+    "Watchlists/AIGS_ContentFilterPolicies/AIGS_ContentFilterPolicies.json",
+    "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.json"
+  ],
+  "Playbooks": [
+    "Playbooks/AIGS-Notify-001-TeamsAlert/azuredeploy.json",
+    "Playbooks/AIGS-Auto-001-RestoreDiagnostics/azuredeploy.json"
+  ],
+  "Version": "3.0.1",
+  "Metadata": "SolutionMetadata.json",
+  "TemplateSpec": true,
+  "Is1PConnector": false,
+  "support": {
+    "name": "x3nc0n",
+    "email": "",
+    "tier": "Community",
+    "link": "https://github.com/x3nc0n"
+  }
+}

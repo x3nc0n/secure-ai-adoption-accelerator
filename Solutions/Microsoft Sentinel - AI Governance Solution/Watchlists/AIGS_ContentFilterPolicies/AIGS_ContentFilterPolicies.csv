@@ -1,0 +1,2 @@
+ItemKey,PolicyName,ResourceId,AccountName,SubscriptionId,HateSeverityThreshold,ViolenceSeverityThreshold,SelfHarmSeverityThreshold,SexualSeverityThreshold,JailbreakEnabled,IndirectAttackEnabled,Status,BaselineVersion,LastUpdated
+CFP-TEMPLATE-001,Default-Strict-TEMPLATE,/subscriptions/10000000-0000-0000-0000-000000000001/resourceGroups/rg-example/providers/Microsoft.CognitiveServices/accounts/oai-example,oai-example,10000000-0000-0000-0000-000000000001,Low,Low,Low,Low,true,true,Template,3.0.0,2026-07-17T00:00:00Z

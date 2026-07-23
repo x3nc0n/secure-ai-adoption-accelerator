@@ -1,0 +1,289 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": false,
+      "basics": {
+        "description": "<img src=\"https://raw.githubusercontent.com/x3nc0n/secure-ai-adotpion-accelerator/main/Logos/AIGovernance.svg\" width=\"75px\" height=\"75px\">\n\n**Note:** Please refer to the following before installing the solution: \n\n• Review the solution [Release Notes](https://github.com/Azure/Azure-Sentinel/tree/master/Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/ReleaseNotes.md)\n\n • There may be [known issues](https://aka.ms/sentinelsolutionsknownissues) pertaining to this Solution, please refer to them before installing.\n\nAI governance monitoring and automated response across Microsoft AI services. Provides detection, alerting, and approval-gated remediation for configuration drift, posture violations, unauthorized model deployments, and anomalous AI usage patterns.\n\n**Workbooks:** 1, **Analytic Rules:** 2, **Hunting Queries:** 2, **Watchlists:** 2, **Playbooks:** 2\n\n[Learn more about Microsoft Sentinel](https://aka.ms/azuresentinel) | [Learn more about Solutions](https://aka.ms/azuresentinelsolutionsdoc)",
+        "subscription": {
+          "resourceProviders": [
+            "Microsoft.OperationsManagement/solutions",
+            "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+            "Microsoft.Insights/workbooks",
+            "Microsoft.Logic/workflows"
+          ]
+        },
+        "location": {
+          "metadata": {
+            "hidden": "Hiding location, we get it from the log analytics workspace"
+          },
+          "visible": false
+        },
+        "resourceGroup": {
+          "allowExisting": true
+        }
+      }
+    },
+    "basics": [
+      {
+        "name": "getLAWorkspace",
+        "type": "Microsoft.Solutions.ArmApiControl",
+        "toolTip": "This filters by workspaces that exist in the Resource Group selected",
+        "condition": "[greater(length(resourceGroup().name),0)]",
+        "request": {
+          "method": "GET",
+          "path": "[concat(subscription().id,'/providers/Microsoft.OperationalInsights/workspaces?api-version=2020-08-01')]"
+        }
+      },
+      {
+        "name": "workspace",
+        "type": "Microsoft.Common.DropDown",
+        "label": "Workspace",
+        "placeholder": "Select a workspace",
+        "toolTip": "This dropdown will list only workspace that exists in the Resource Group selected",
+        "constraints": {
+          "allowedValues": "[map(filter(basics('getLAWorkspace').value, (filter) => contains(toLower(filter.id), toLower(resourceGroup().name))), (item) => parse(concat('{\"label\":\"', item.name, '\",\"value\":\"', item.name, '\"}')))]",
+          "required": true
+        },
+        "visible": true
+      }
+    ],
+    "steps": [
+      {
+        "name": "workbooks",
+        "label": "Workbooks",
+        "subLabel": {
+          "preValidation": "Configure the workbooks",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "Workbooks",
+        "elements": [
+          {
+            "name": "workbooks-text",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This solution installs workbook(s) to help you gain insights into the telemetry collected in Microsoft Sentinel. After installing the solution, start using the workbook in Manage solution view."
+            }
+          },
+          {
+            "name": "workbooks-link",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "link": {
+                "label": "Learn more",
+                "uri": "https://docs.microsoft.com/azure/sentinel/tutorial-monitor-your-data"
+              }
+            }
+          },
+          {
+            "name": "workbook1",
+            "type": "Microsoft.Common.Section",
+            "label": "AI Governance Solution",
+            "elements": [
+              {
+                "name": "workbook1-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Monitor AI governance posture and configuration-change evidence across Microsoft AI services. Missing connectors, telemetry, and active baselines are reported as not configured rather than compliant."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "analytics",
+        "label": "Analytics",
+        "subLabel": {
+          "preValidation": "Configure the analytics",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "Analytics",
+        "elements": [
+          {
+            "name": "analytics-text",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This solution installs the following analytic rule templates. After installing the solution, create and enable analytic rules in Manage solution view."
+            }
+          },
+          {
+            "name": "analytics-link",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "link": {
+                "label": "Learn more",
+                "uri": "https://docs.microsoft.com/azure/sentinel/tutorial-detect-threats-custom?WT.mc_id=Portal-Microsoft_Azure_CreateUIDef"
+              }
+            }
+          },
+          {
+            "name": "analytic1",
+            "type": "Microsoft.Common.Section",
+            "label": "[AIGS] Config Drift - Responsible AI Policy Modified",
+            "elements": [
+              {
+                "name": "analytic1-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Detects successful write or delete operations against Microsoft.CognitiveServices/accounts/raiPolicies\non resources and policies explicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.\n\nFAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero\nresults. An empty or template-only watchlist does not trigger alerts. Populate the watchlist with\nat least one Status=Active row before this rule will fire.\n\nResults are labeled drift candidates requiring analyst investigation. This rule DOES NOT confirm\nthat content filter values were weakened or removed — AzureActivity carries the ARM operation event\nbut not the before-state policy body. PB-AUTO-01 cannot restore RAI policies from this alert;\nresponse is notify and investigate only.\n\nAnalyst action: Verify current raiPolicy state via Azure Portal or the REST API\n(GET .../providers/Microsoft.CognitiveServices/accounts/{name}/raiPolicies) before escalating.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional\nimAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD001\nDomain:   Configuration Drift (CD)\nResponse: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 cannot restore RAI policies;\n          AzureActivity lacks before-state policy body)\nBaseline: AIGS_ContentFilterPolicies watchlist (itemsSearchKey: ItemKey; match on AccountName + PolicyName)\nMCSB:     NS-1 (Establish network segmentation boundaries), IM-1 (Use centralised identity)\nNIST AI RMF: GOVERN-1.1, MANAGE-2.2"
+                }
+              }
+            ]
+          },
+          {
+            "name": "analytic2",
+            "type": "Microsoft.Common.Section",
+            "label": "[AIGS] Config Drift - AI Resource Diagnostic Settings Changed",
+            "elements": [
+              {
+                "name": "analytic2-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Detects successful write or delete operations against Microsoft.Insights/diagnosticSettings\non Microsoft.CognitiveServices resources (Azure OpenAI / Microsoft Foundry accounts) that are\nexplicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.\n\nFAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero\nresults. Scope is derived from the AccountName field of the content-filter baseline — accounts\nin that Active baseline are the approved AI resource set monitored by this rule.\n\nRationale for using AIGS_ContentFilterPolicies as resource scope: This watchlist tracks approved\nCognitiveServices accounts with documented governance expectations. Restricting CD005 to this\nscope avoids alerting on dev/test resources and ensures diagnostic-settings changes are only\nsurfaced for explicitly governed AI resources. The watchlist does not define expected diagnostic\nlog categories or workspace destinations; this rule scopes to the resource, not to specific\nsettings values. PB-AUTO-01 is NOT referenced as a restore action because AzureActivity does\nnot carry the before-state diagnostic settings body — no baseline-safe automatic restoration\nis possible from this alert.\n\nA delete operation removes audit-log forwarding entirely — high-severity indicator.\nA write operation may represent a legitimate change or reduction in log categories.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional\nimAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD005\nDomain:   Configuration Drift (CD)\nResponse: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 not applicable;\n          before-state diagnostic settings body unavailable from AzureActivity)\nBaseline: AIGS_ContentFilterPolicies watchlist (AccountName field; Status=Active)\nMCSB:     LT-3 (Enable logging for security investigation), LT-4 (Enable network logging)\nNIST AI RMF: GOVERN-1.3, MAP-5.1"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "huntingqueries",
+        "label": "Hunting Queries",
+        "bladeTitle": "Hunting Queries",
+        "elements": [
+          {
+            "name": "huntingqueries-text",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This solution installs the following hunting queries. After installing the solution, run these hunting queries to hunt for threats in Manage solution view. "
+            }
+          },
+          {
+            "name": "huntingqueries-link",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "link": {
+                "label": "Learn more",
+                "uri": "https://docs.microsoft.com/azure/sentinel/hunting"
+              }
+            }
+          },
+          {
+            "name": "huntingquery1",
+            "type": "Microsoft.Common.Section",
+            "label": "AIGS - Hunt - AI Model Deployment Changes",
+            "elements": [
+              {
+                "name": "huntingquery1-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Returns successful model deployment write operations on Microsoft.CognitiveServices accounts\nover the selected lookback period, cross-referenced against the AIGS_ApprovedModels watchlist.\nFlags deployments where the deployment name is not present in the approved models baseline.\n\nLOCATION VALIDATION LIMITATION: AzureActivity does not contain resource location (region).\nRegion enforcement is not possible from AzureActivity alone and requires Azure Resource Graph\ncorrelation outside Sentinel KQL. ResourceGroup is NOT a reliable region proxy.\nThis hunt surfaces deployment change evidence only; it cannot validate region compliance.\n\nWhen the AIGS_ApprovedModels watchlist is absent, all successful deployment write events\nare surfaced to support initial baseline seeding.\n\nNOTE: This hunt does not assess compliance. Without the AIGS_ApprovedModels watchlist configured,\nno baseline comparison is performed — results are change evidence only, never a compliance\ndetermination. Baseline comparison is unavailable when the watchlist is absent.\n\nCAVEAT: Deployment name (from ARM resource path) is used as model proxy. The actual model name\nlives in the ARM request body (Properties field), which is not formally documented in the\nAzureActivity schema reference. Deployment names may be custom aliases; analyst confirmation\nagainst Azure Resource Manager is required when this hunt flags a deployment.\n\nThis hunt complements AIGS-AM001 (Unauthorized AI Model Deployment) by providing a broader\nhistorical view across the full lookback window for threat hunting and compliance review.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema);\noptional imAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   E — Azure General / Model Governance\nControl:  AIGS-AM001 (reference)\nDomain:   Audit Monitoring (AM)\nDefault lookback: 14 days (adjust LookbackPeriod as needed) This hunting query depends on AzureActivity data connector (AzureActivity Parser or Table)"
+                }
+              }
+            ]
+          },
+          {
+            "name": "huntingquery2",
+            "type": "Microsoft.Common.Section",
+            "label": "AIGS - Hunt - Azure OpenAI RAI Policy Changes",
+            "elements": [
+              {
+                "name": "huntingquery2-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Returns all successful and failed write/delete operations against\nMicrosoft.CognitiveServices/accounts/raiPolicies over the selected lookback period.\nUse this hunt to reconstruct the history of Responsible AI (RAI) / content-filter policy\nchanges on Azure OpenAI and Microsoft Foundry accounts, identify unexpected callers,\nand seed or validate the AIGS_ContentFilterPolicies baseline watchlist.\n\nResults show individual events ordered by time, followed by a per-account change summary.\nNo watchlist is required; all raiPolicy activity is surfaced regardless of baseline state.\n\nASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema);\noptional imAuditEvent mapping available. No custom parser required; no false ASIM claim.\n\nModule:   A — Azure OpenAI / Microsoft Foundry\nControl:  AIGS-CD001 (reference)\nDomain:   Configuration Drift (CD)\nDefault lookback: 14 days (adjust LookbackPeriod as needed)\n\nNOTE: This hunt does not assess compliance. Without the AIGS_ContentFilterPolicies watchlist\nconfigured, no baseline comparison is performed — results are change evidence only, never a\ncompliance determination. Baseline comparison is unavailable when the watchlist is absent. This hunting query depends on AzureActivity data connector (AzureActivity Parser or Table)"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "watchlists",
+        "label": "Watchlists",
+        "subLabel": {
+          "preValidation": "Configure the watchlists",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "Watchlists",
+        "elements": [
+          {
+            "name": "watchlists-text",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "Microsoft Sentinel watchlists enable the collection of data from external data sources for correlation with the events in your Microsoft Sentinel environment. Once created, you can use watchlists in your search, detection rules, threat hunting, and response playbooks. Watchlists are stored in your Microsoft Sentinel workspace as name-value pairs and are cached for optimal query performance and low latency. Once deployment is successful, the installed watchlists will be available in the Watchlists blade under 'My Watchlists'.",
+              "link": {
+                "label": "Learn more",
+                "uri": "https://aka.ms/sentinelwatchlists"
+              }
+            }
+          },
+          {
+            "name": "watchlist1",
+            "type": "Microsoft.Common.Section",
+            "label": "AIGS - Approved Content Filter Policies",
+            "elements": [
+              {
+                "name": "watchlist1-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Approved Azure OpenAI / Microsoft Foundry content filter policy configurations. Used by analytic rules to detect removal or weakening of content filter policies on deployed models. Each row defines an approved policy name and its minimum required configuration thresholds. Populate ItemKey with a unique policy identifier per row. Rows with Status=Template are shipped as schema examples and should be replaced with real policy data before relying on watchlist-based detections."
+                }
+              }
+            ]
+          },
+          {
+            "name": "watchlist2",
+            "type": "Microsoft.Common.Section",
+            "label": "AIGS - Approved AI Models",
+            "elements": [
+              {
+                "name": "watchlist2-text",
+                "type": "Microsoft.Common.TextBlock",
+                "options": {
+                  "text": "Approved Azure OpenAI / Microsoft Foundry model deployments by subscription. Used by analytic rules to detect unauthorized model deployments outside this approved list. Each row defines an approved model ID, deployment name, and resource scope. Populate ItemKey with a unique model deployment identifier per row. Rows with Status=Template are shipped as schema examples and should be replaced with real deployment data before relying on watchlist-based detections."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "playbooks",
+        "label": "Playbooks",
+        "subLabel": {
+          "preValidation": "Configure the playbooks",
+          "postValidation": "Done"
+        },
+        "bladeTitle": "Playbooks",
+        "elements": [
+          {
+            "name": "playbooks-text",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "text": "This solution installs the Playbook templates to help implement your Security Orchestration, Automation and Response (SOAR) operations. After installing the solution, these will be deployed under Playbook Templates in the Automation blade in Microsoft Sentinel. They can be configured and managed from the Manage solution view in Content Hub."
+            }
+          },
+          {
+            "name": "playbooks-link",
+            "type": "Microsoft.Common.TextBlock",
+            "options": {
+              "link": {
+                "label": "Learn more",
+                "uri": "https://docs.microsoft.com/azure/sentinel/tutorial-respond-threats-playbook?WT.mc_id=Portal-Microsoft_Azure_CreateUIDef"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "outputs": {
+      "workspace-location": "[first(map(filter(basics('getLAWorkspace').value, (filter) => and(contains(toLower(filter.id), toLower(resourceGroup().name)),equals(filter.name,basics('workspace')))), (item) => item.location))]",
+      "location": "[location()]",
+      "workspace": "[basics('workspace')]"
+    }
+  }
+}

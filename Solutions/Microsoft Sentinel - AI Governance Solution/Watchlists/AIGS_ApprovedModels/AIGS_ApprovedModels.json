@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Log Analytics workspace hosting Microsoft Sentinel."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/AIGS_ApprovedModels')]",
+      "properties": {
+        "displayName": "AIGS - Approved AI Models",
+        "provider": "x3nc0n",
+        "description": "Approved Azure OpenAI / Microsoft Foundry model deployments by subscription. Used by analytic rules to detect unauthorized model deployments outside this approved list. Each row defines an approved model ID, deployment name, and resource scope. Populate ItemKey with a unique model deployment identifier per row. Rows with Status=Template are shipped as schema examples and should be replaced with real deployment data before relying on watchlist-based detections.",
+        "source": "Local file",
+        "itemsSearchKey": "ItemKey",
+        "contentType": "text/csv",
+        "numberOfLinesToSkip": 0,
+        "rawContent": "ItemKey,ModelId,DeploymentName,AccountName,ResourceGroupName,SubscriptionId,ApprovedVersion,MaxCapacityTPM,Region,Status,BaselineVersion,LastUpdated\nMDL-TEMPLATE-001,gpt-4o,gpt-4o-TEMPLATE,oai-example,rg-example,10000000-0000-0000-0000-000000000001,2024-11-20,100000,eastus,Template,3.0.0,2026-07-17T00:00:00Z"
+      }
+    }
+  ]
+}

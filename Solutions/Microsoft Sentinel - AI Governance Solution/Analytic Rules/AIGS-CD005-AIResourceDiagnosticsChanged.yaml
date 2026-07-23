@@ -1,0 +1,148 @@
+id: 7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82
+name: "[AIGS] Config Drift - AI Resource Diagnostic Settings Changed"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Detects successful write or delete operations against Microsoft.Insights/diagnosticSettings
+  on Microsoft.CognitiveServices resources (Azure OpenAI / Microsoft Foundry accounts) that are
+  explicitly tracked as Active in the AIGS_ContentFilterPolicies watchlist.
+
+  FAIL-CLOSED: If AIGS_ContentFilterPolicies contains no Active entries, this rule produces zero
+  results. Scope is derived from the AccountName field of the content-filter baseline — accounts
+  in that Active baseline are the approved AI resource set monitored by this rule.
+
+  Rationale for using AIGS_ContentFilterPolicies as resource scope: This watchlist tracks approved
+  CognitiveServices accounts with documented governance expectations. Restricting CD005 to this
+  scope avoids alerting on dev/test resources and ensures diagnostic-settings changes are only
+  surfaced for explicitly governed AI resources. The watchlist does not define expected diagnostic
+  log categories or workspace destinations; this rule scopes to the resource, not to specific
+  settings values. PB-AUTO-01 is NOT referenced as a restore action because AzureActivity does
+  not carry the before-state diagnostic settings body — no baseline-safe automatic restoration
+  is possible from this alert.
+
+  A delete operation removes audit-log forwarding entirely — high-severity indicator.
+  A write operation may represent a legitimate change or reduction in log categories.
+
+  ASIM: native AzureActivity → imAuditEvent (_Im_AuditEvent, ASIM Audit Event schema); optional
+  imAuditEvent mapping available. No custom parser required; no false ASIM claim.
+
+  Module:   A — Azure OpenAI / Microsoft Foundry
+  Control:  AIGS-CD005
+  Domain:   Configuration Drift (CD)
+  Response: PB-NOTIFY-01 (notify and investigate only — PB-AUTO-01 not applicable;
+            before-state diagnostic settings body unavailable from AzureActivity)
+  Baseline: AIGS_ContentFilterPolicies watchlist (AccountName field; Status=Active)
+  MCSB:     LT-3 (Enable logging for security investigation), LT-4 (Enable network logging)
+  NIST AI RMF: GOVERN-1.3, MAP-5.1
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 1h
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562.008
+query: |
+  // ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)
+  // Control: AIGS-CD005
+  // Data Contract: AzureActivity | Microsoft.Insights/diagnosticSettings write/delete
+  //   Confirmed ARM operations (documented Azure REST API):
+  //     microsoft.insights/diagnosticsettings/write
+  //     microsoft.insights/diagnosticsettings/delete
+  //   Resource scope: _ResourceId contains "microsoft.cognitiveservices" (AI resources only)
+  // Baseline scope: AIGS_ContentFilterPolicies (Status=Active AccountName field)
+  //   Rationale: AccountName identifies the approved AI resource set; diagnostic-settings
+  //   changes on accounts NOT in this baseline are out-of-scope for this rule.
+  //   Note: AIGS_ContentFilterPolicies does not define expected diagnostic log categories
+  //   or workspace destinations. This rule scopes to the resource, not to specific settings values.
+  //   PB-AUTO-01 NOT referenced: AzureActivity lacks the before-state settings body; no
+  //   baseline-safe automatic restoration is possible from this alert.
+  // FAIL-CLOSED: inner join on AccountName — if watchlist has no Active entries, zero results.
+  let DiagOps = dynamic([
+      "microsoft.insights/diagnosticsettings/write",
+      "microsoft.insights/diagnosticsettings/delete"
+  ]);
+  // Active AI resource scope from AIGS_ContentFilterPolicies
+  // Empty or no-Active entries → inner join yields zero results (fail-closed)
+  let ApprovedResources = materialize(
+      _GetWatchlist("AIGS_ContentFilterPolicies")
+      | where Status =~ "Active"
+      | project WL_AccountName = tolower(AccountName)
+      | distinct WL_AccountName
+  );
+  AzureActivity
+  | where TimeGenerated >= ago(1h)
+  | where tolower(OperationNameValue) in (DiagOps)
+  | where ActivityStatusValue =~ "Success"
+  // Pre-filter: scope to CognitiveServices resources before join (performance + precision)
+  // NOTE: Diagnostic settings operations are logged under the Microsoft.Insights provider
+  //       but the _ResourceId path still contains the parent CognitiveServices account.
+  | where tolower(_ResourceId) contains "microsoft.cognitiveservices"
+  | extend
+      // Extract account name and diagnostic setting name from ARM resource path
+      // Path: .../providers/Microsoft.CognitiveServices/accounts/{acct}/providers/microsoft.insights/diagnosticSettings/{settingName}
+      AccountName   = tostring(extract(@"/accounts/([^/]+)", 1, tolower(_ResourceId))),
+      SettingName   = tostring(extract(@"/diagnosticsettings/([^/]+)", 1, tolower(_ResourceId))),
+      OperationType = iff(tolower(OperationNameValue) has "delete", "Delete", "Write")
+  // Inner join: only accounts with Active baseline entries trigger alerts (fail-closed)
+  | join kind=inner (ApprovedResources) on $left.AccountName == $right.WL_AccountName
+  | extend
+      SeverityIndicator = case(
+          OperationType == "Delete",
+              "HIGH — Diagnostic setting deleted on Active baseline resource; audit-log forwarding may be interrupted",
+          OperationType == "Write",
+              "MEDIUM — Diagnostic setting written on Active baseline resource; validate required log categories and destinations are preserved",
+          "INFO — Diagnostic setting operation on baseline resource; review required"
+      ),
+      RemediationNote = strcat(
+          "Notify SOC via PB-NOTIFY-01 and investigate. ",
+          "Confirm that diagnostic setting '", SettingName, "' on account '", AccountName, "' ",
+          "retains all required log categories (Audit, RequestResponse, Trace) ",
+          "and forwards to the approved Log Analytics workspace. ",
+          "PB-AUTO-01 is not applicable: AzureActivity lacks the before-state settings body; ",
+          "restoration requires manual baseline comparison and remediation."
+      )
+  | project
+      TimeGenerated,
+      OperationType,
+      OperationNameValue,
+      _ResourceId,
+      AccountName,
+      SettingName,
+      Caller,
+      CallerIpAddress,
+      SubscriptionId,
+      ResourceGroup,
+      ActivityStatusValue,
+      SeverityIndicator,
+      RemediationNote,
+      CorrelationId
+entityMappings:
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+customDetails:
+  OperationType: OperationType
+  AccountName: AccountName
+  SettingName: SettingName
+  SeverityIndicator: SeverityIndicator
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-CD005: Diagnostic Settings {{OperationType}} on AI Resource — Audit Continuity at Risk"
+  alertDescriptionFormat: "{{SeverityIndicator}} | {{RemediationNote}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

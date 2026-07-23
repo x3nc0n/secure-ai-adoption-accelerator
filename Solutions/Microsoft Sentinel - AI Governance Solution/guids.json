@@ -1,0 +1,242 @@
+﻿{
+  "_comment": "GUID registry for Microsoft Sentinel - AI Governance Solution. All deployed content GUIDs must be registered here. CI validates that deployed GUIDs match this registry. Status: 'resolved' = GUID assigned and file exists; 'unresolved' = placeholder pending a future implementation pass.",
+  "_namespaceGuid": "f1de974b-f438-4719-b423-8bf704ba2aef",
+  "_namespaceNote": "Solution namespace GUID — assigned. Do not change; used as UUID v5 namespace base.",
+  "solution": {
+    "guid": "f1de974b-f438-4719-b423-8bf704ba2aef",
+    "name": "Microsoft Sentinel - AI Governance Solution",
+    "owner": "tank",
+    "status": "resolved"
+  },
+  "playbooks": {
+    "AIGS-Notify-001-TeamsAlert": {
+      "guid": "431569ca-4602-429d-89ae-70bda1697f2c",
+      "displayName": "AIGS - Notify - Teams Alert",
+      "owner": "tank",
+      "status": "resolved",
+      "file": "Playbooks/AIGS-Notify-001-TeamsAlert/azuredeploy.json"
+    },
+    "AIGS-Auto-001-RestoreDiagnostics": {
+      "guid": "221420aa-1cf5-43ff-8e6c-39ead535c8a4",
+      "displayName": "AIGS - Auto - Restore Diagnostics",
+      "owner": "tank",
+      "status": "resolved",
+      "file": "Playbooks/AIGS-Auto-001-RestoreDiagnostics/azuredeploy.json"
+    }
+  },
+  "watchlists": {
+    "AIGS_ContentFilterPolicies": {
+      "guid": "37b81e0a-e451-4d15-9c0b-b2ba03d8a136",
+      "displayName": "AIGS - Approved Content Filter Policies",
+      "searchKey": "ItemKey",
+      "owner": "tank",
+      "status": "resolved",
+      "metadataFile": "Watchlists/AIGS_ContentFilterPolicies/AIGS_ContentFilterPolicies.json",
+      "dataFile": "Watchlists/AIGS_ContentFilterPolicies/AIGS_ContentFilterPolicies.csv"
+    },
+    "AIGS_ApprovedModels": {
+      "guid": "1a4b8eea-60d0-4ca9-a7e6-947734f20d15",
+      "displayName": "AIGS - Approved AI Models",
+      "searchKey": "ItemKey",
+      "owner": "tank",
+      "status": "resolved",
+      "metadataFile": "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.json",
+      "dataFile": "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.csv"
+    }
+  },
+  "analyticRules": {
+    "AIGS-CD001-ProtectedRAIPolicyModified": {
+      "guid": "3f8d7c2a-1e9b-4f5c-a6d0-7b2e4c8f3a91",
+      "displayName": "[AIGS] Config Drift - Responsible AI Policy Modified",
+      "module": "A",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-CD001-ProtectedRAIPolicyModified.yaml"
+    },
+    "AIGS-CD005-AIResourceDiagnosticsChanged": {
+      "guid": "7c4e1a9d-3b6f-4e2a-b8c5-0d7f1e3a6b82",
+      "displayName": "[AIGS] Config Drift - AI Resource Diagnostic Settings Changed",
+      "module": "A",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-CD005-AIResourceDiagnosticsChanged.yaml"
+    }
+  },
+  "huntingQueries": {
+    "AIGS-Hunt-AzureOpenAIRAIChanges": {
+      "guid": "a9d5e3b7-2c1f-4d8a-e6b4-3f7c9a0d2e51",
+      "displayName": "AIGS - Hunt - Azure OpenAI RAI Policy Changes",
+      "module": "A",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Hunting Queries/AIGS-Hunt-AzureOpenAIRAIChanges.yaml"
+    },
+    "AIGS-Hunt-AIModelDeploymentChanges": {
+      "guid": "b4f2a8d1-6e3c-4b9f-d0a7-8c2e5b1f4d63",
+      "displayName": "AIGS - Hunt - AI Model Deployment Changes",
+      "module": "E",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml"
+    }
+  },
+  "workbooks": {
+    "AIGS-Workbook-AIGovernanceDashboard": {
+      "guid": "7b9bc9cb-c735-474a-9b4a-556e14482547",
+      "displayName": "Microsoft Sentinel - AI Governance Solution",
+      "owner": "trinity",
+      "status": "resolved",
+      "file": "Workbooks/AIGovernanceSolution.json"
+    }
+  },
+  "_roadmap": {
+    "_comment": "Non-deployable roadmap — items here are planned for future implementation batches. Do not reference in Solution_AIGovernance.json until files exist and status is resolved.",
+    "watchlists": {
+      "AIGS_ApprovedAgents": {
+        "guid": "c99b8139-d6ef-4e99-8754-c795539af984",
+        "displayName": "AIGS - Approved AI Agents",
+        "searchKey": "AgentId",
+        "owner": "tank (metadata) / neo (csv data)",
+        "status": "unresolved — pending future batch",
+        "metadataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json",
+        "dataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.csv"
+      },
+      "AIGS_ApprovedCopilotPlugins": {
+        "guid": "a660affe-8b13-47c1-864e-85d3852169f6",
+        "displayName": "AIGS - Approved Copilot Plugins",
+        "searchKey": "PluginId",
+        "owner": "tank (metadata) / neo (csv data)",
+        "status": "unresolved — pending future batch",
+        "metadataFile": "Watchlists/AIGS_ApprovedCopilotPlugins/AIGS_ApprovedCopilotPlugins.json",
+        "dataFile": "Watchlists/AIGS_ApprovedCopilotPlugins/AIGS_ApprovedCopilotPlugins.csv"
+      },
+      "AIGS_M365CopilotBaseline": {
+        "guid": "855b82c3-e9fe-416a-ad0f-41db79f6433b",
+        "displayName": "AIGS - M365 Copilot Baseline",
+        "searchKey": "ItemKey",
+        "owner": "tank (metadata) / neo (csv data)",
+        "status": "unresolved — pending future batch",
+        "metadataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.json",
+        "dataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.csv"
+      },
+      "AIGS_PurviewPolicies": {
+        "guid": "b9d2c40e-d726-4e34-99a7-4a55b5303757",
+        "displayName": "AIGS - Approved Purview AI Policies",
+        "searchKey": "PolicyName",
+        "owner": "tank (metadata) / neo (csv data)",
+        "status": "unresolved — pending future batch",
+        "metadataFile": "Watchlists/AIGS_PurviewPolicies/AIGS_PurviewPolicies.json",
+        "dataFile": "Watchlists/AIGS_PurviewPolicies/AIGS_PurviewPolicies.csv"
+      },
+      "AIGS_DefenderXDRBaseline": {
+        "guid": "d4b50499-0e0a-4890-879e-346be92a7c8d",
+        "displayName": "AIGS - Defender XDR AI App Baseline",
+        "searchKey": "AppId",
+        "owner": "tank (metadata) / neo (csv data)",
+        "status": "unresolved — pending future batch",
+        "metadataFile": "Watchlists/AIGS_DefenderXDRBaseline/AIGS_DefenderXDRBaseline.json",
+        "dataFile": "Watchlists/AIGS_DefenderXDRBaseline/AIGS_DefenderXDRBaseline.csv"
+      }
+    },
+    "analyticRules": {
+      "AIGS-PA001-AgentMissingDLPGuardrail": {
+        "guid": "a90c2bb8-b310-44d7-90e0-82409c80d604",
+        "displayName": "[AIGS] Posture - Agent Missing Required DLP Guardrail",
+        "module": "B",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-PA001-AgentMissingDLPGuardrail.yaml"
+      },
+      "AIGS-CD002-AgentConfigDrift": {
+        "guid": "cf4b5093-14b1-4b7f-a3c5-d139eebeefb7",
+        "displayName": "[AIGS] Config Drift - Agent Configuration Drift Detected",
+        "module": "B",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml"
+      },
+      "AIGS-AM001-UnauthorizedModelDeployment": {
+        "guid": "752bbac1-66ff-4bba-93f7-46a57bbd793d",
+        "displayName": "[AIGS] Audit Monitor - Unauthorized AI Model Deployment",
+        "module": "E",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-AM001-UnauthorizedModelDeployment.yaml"
+      },
+      "AIGS-AM002-PurviewAIHubPolicyViolation": {
+        "guid": "0cb9be3a-0c99-47be-b6bf-ab2f8c4032b2",
+        "displayName": "[AIGS] Audit Monitor - Purview AI Hub Policy Violation",
+        "module": "F",
+        "owner": "neo",
+        "status": "unresolved — exact Operation value must be verified before authoring",
+        "file": "Analytic Rules/AIGS-AM002-PurviewAIHubPolicyViolation.yaml"
+      },
+      "AIGS-CD004-UnsanctionedAIAppAccess": {
+        "guid": "7cbd7320-7f92-4cbb-8295-b2c0dfe3dad2",
+        "displayName": "[AIGS] Config Drift - Unsanctioned AI App Access",
+        "module": "D",
+        "owner": "neo",
+        "status": "unresolved — scenario revised; KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-CD004-UnsanctionedAIAppAccess.yaml"
+      },
+      "AIGS-RU001-AnomalousSecurityCopilotUsage": {
+        "guid": "6aef4ef2-1705-4185-aadd-b0159a485842",
+        "displayName": "[AIGS] Risky Usage - Anomalous Security Copilot Session Volume [Preview]",
+        "module": "G",
+        "owner": "neo",
+        "status": "unresolved — Module G disabled by default; KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-RU001-AnomalousSecurityCopilotUsage.yaml"
+      },
+      "AIGS-PA002-ContentFilterMissingModel": {
+        "guid": "38992355-e589-4fae-88a8-c3317f753cf7",
+        "displayName": "[AIGS] Posture - Content Filter Policy Missing from Deployed Model",
+        "module": "C",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Analytic Rules/AIGS-PA002-ContentFilterMissingModel.yaml"
+      }
+    },
+    "huntingQueries": {
+      "AIGS-Hunt-AgentsRegisteredByExternalIdentity": {
+        "guid": "62fcd70f-1fec-43c4-aa39-91f0740c5883",
+        "displayName": "AIGS - Hunt - Agents Registered by External Identity",
+        "module": "B",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Hunting Queries/AIGS-Hunt-AgentsRegisteredByExternalIdentity.yaml"
+      },
+      "AIGS-Hunt-UnauthorizedPluginAccess": {
+        "guid": "8529f81b-37ab-4bb3-b9b4-5889ff597669",
+        "displayName": "AIGS - Hunt - Unauthorized Copilot Plugin Access",
+        "module": "C",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Hunting Queries/AIGS-Hunt-UnauthorizedPluginAccess.yaml"
+      },
+      "AIGS-Hunt-ShadowAIApplicationDiscovery": {
+        "guid": "5164334a-076d-4066-8fcf-724f1db8da63",
+        "displayName": "AIGS - Hunt - Shadow AI Application Discovery",
+        "module": "D",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Hunting Queries/AIGS-Hunt-ShadowAIApplicationDiscovery.yaml"
+      },
+      "AIGS-Hunt-ContentFilterMissingResources": {
+        "guid": "98f4e473-ee7e-4f4b-ab0c-675b477751f2",
+        "displayName": "AIGS - Hunt - Azure OpenAI Resources Missing Content Filter",
+        "module": "A",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Hunting Queries/AIGS-Hunt-ContentFilterMissingResources.yaml"
+      },
+      "AIGS-Hunt-AnomalousTokenConsumption": {
+        "guid": "d9bfacad-b6ae-404d-84bd-9341c66eed80",
+        "displayName": "AIGS - Hunt - Anomalous Token Consumption",
+        "module": "A",
+        "owner": "neo",
+        "status": "unresolved — KQL authoring pending neo",
+        "file": "Hunting Queries/AIGS-Hunt-AnomalousTokenConsumption.yaml"
+      }
+    }
+  }
+}
