@@ -7,6 +7,42 @@
 
 ## Revision History
 
+### 2026-07-23 — Module C Design Gate: Observed-State MVP over Operation Assumption (Morpheus)
+
+**Decision written to** `.squad/decisions/inbox/morpheus-module-c-design-gate.md`. **Verdict: APPROVE (scoped MVP).**
+
+- **Operation ruled unavailable for scheduled content.** The authoritative `CopilotActivity`
+  schema page (24 columns, updated 2026-05-06) lists **no** `Operation` column; the 11 admin
+  operation names live on a separate audit-log-activities page and are unproven to materialize
+  as a queryable table column. All Operation/RecordType-literal detections (Trinity GO 1–3,
+  Switch fixtures A/B, PREREQ plugin-add rule) demoted to roadmap.
+- **Defensible MVP = observed-state expected-state comparison.** `AIGS-CD003 - M365 Copilot
+  Agent Model Drift`: inner-join `CopilotActivity` observed `AIModelName`/`AIModelVersion` by
+  `AgentId` to Active `AIGS_M365CopilotBaseline`. Mirrors Module B `AIGS-CD002` exactly. Uses
+  only verified columns; no Operation.
+- **Inner join replaces unverified `Workload` literal.** The customer-curated baseline is the
+  scope boundary, so no `Workload =~ "M365Copilot"` string needs inventing — this **supersedes**
+  Switch TC-C-005. Key architectural move: when a discriminator value is unverified, let a
+  fail-closed inner join define scope instead of a fabricated literal.
+- **AIGS-PA002 reassigned C→A** (Azure OpenAI content filter concern), GUID/roadmap status kept.
+  New Module C rule GUID `72eb1408-...` via UUIDv5(namespace, "AIGS-CD003-CopilotAgentModelDrift").
+- **Deliverables this pass:** 1 rule (CD003), 1 hunt (CopilotAgentModelInventory), 1 watchlist
+  (AIGS_M365CopilotBaseline promoted), workbook Module C tiles (isfuzzy-guarded), PREREQ rewrite,
+  validator E6 forbidden-column guard. No custom parser (non-ASIM, direct KQL).
+- **Unresolved connector ID handled without fabrication:** ship isfuzzy-guarded + prerequisite
+  comment; omit or allowlist-validate `requiredDataConnectors.connectorId`; Trinity owns
+  confirming exact Content Hub ID as a GA blocker (not an MVP-deploy blocker).
+
+**Key learning:** Prefer a fail-closed inner join against a customer-curated baseline over any
+detection that depends on unverified enum/literal values from preview telemetry. It converts an
+evidence gap into a bounded, deterministic, high-confidence control.
+
+**Key learning:** Separate "documented on an operations reference page" from "materialized as a
+queryable column in the ingested table." The two are routinely conflated for preview connectors
+and are the highest-risk source of silently-wrong KQL.
+
+## Revision History
+
 ### 2026-07-17 — V3 Tool Constraint Resolution: Version Coherence (Morpheus)
 
 **Context:** Follow-up source authorization to resolve the V3 tool constraint proven in the previous session.

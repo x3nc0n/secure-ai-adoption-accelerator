@@ -11,23 +11,26 @@
     "Analytic Rules/AIGS-CD001-ProtectedRAIPolicyModified.yaml",
     "Analytic Rules/AIGS-CD005-AIResourceDiagnosticsChanged.yaml",
     "Analytic Rules/AIGS-PA001-AgentMissingDeclaredGuardrails.yaml",
-    "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml"
+    "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml",
+    "Analytic Rules/AIGS-CD003-CopilotAgentModelDrift.yaml"
   ],
   "Hunting Queries": [
     "Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml",
     "Hunting Queries/AIGS-Hunt-AzureOpenAIRAIChanges.yaml",
-    "Hunting Queries/AIGS-Hunt-AgentConfigurationDrift.yaml"
+    "Hunting Queries/AIGS-Hunt-AgentConfigurationDrift.yaml",
+    "Hunting Queries/AIGS-Hunt-CopilotAgentModelInventory.yaml"
   ],
   "Watchlists": [
     "Watchlists/AIGS_ContentFilterPolicies/AIGS_ContentFilterPolicies.json",
     "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.json",
-    "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json"
+    "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json",
+    "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.json"
   ],
   "Playbooks": [
     "Playbooks/AIGS-Notify-001-TeamsAlert/azuredeploy.json",
     "Playbooks/AIGS-Auto-001-RestoreDiagnostics/azuredeploy.json"
   ],
-  "Version": "3.0.3",
+  "Version": "3.0.5",
   "Metadata": "SolutionMetadata.json",
   "TemplateSpec": true,
   "Is1PConnector": false,

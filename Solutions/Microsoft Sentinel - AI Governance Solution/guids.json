@@ -51,6 +51,15 @@
       "status": "resolved",
       "metadataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json",
       "dataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.csv"
+    },
+    "AIGS_M365CopilotBaseline": {
+      "guid": "855b82c3-e9fe-416a-ad0f-41db79f6433b",
+      "displayName": "AIGS - M365 Copilot Baseline",
+      "searchKey": "ItemKey",
+      "owner": "tank (metadata) / neo (csv data)",
+      "status": "resolved",
+      "metadataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.json",
+      "dataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.csv"
     }
   },
   "analyticRules": {
@@ -85,6 +94,14 @@
       "owner": "neo",
       "status": "resolved",
       "file": "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml"
+    },
+    "AIGS-CD003-CopilotAgentModelDrift": {
+      "guid": "72eb1408-feda-5533-a0fc-6d622e938011",
+      "displayName": "[AIGS] Config Drift - M365 Copilot Agent Model Drift from Baseline",
+      "module": "C",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-CD003-CopilotAgentModelDrift.yaml"
     }
   },
   "huntingQueries": {
@@ -111,6 +128,14 @@
       "owner": "neo",
       "status": "resolved",
       "file": "Hunting Queries/AIGS-Hunt-AgentConfigurationDrift.yaml"
+    },
+    "AIGS-Hunt-CopilotAgentModelInventory": {
+      "guid": "d6ddbee1-0c89-5d14-9902-501192433570",
+      "displayName": "AIGS - Hunt - M365 Copilot Agent Model Inventory",
+      "module": "C",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Hunting Queries/AIGS-Hunt-CopilotAgentModelInventory.yaml"
     }
   },
   "workbooks": {
@@ -130,18 +155,9 @@
         "displayName": "AIGS - Approved Copilot Plugins",
         "searchKey": "PluginId",
         "owner": "tank (metadata) / neo (csv data)",
-        "status": "unresolved — pending future batch",
+        "status": "unresolved — pending schema proof of PluginId column in CopilotActivity",
         "metadataFile": "Watchlists/AIGS_ApprovedCopilotPlugins/AIGS_ApprovedCopilotPlugins.json",
         "dataFile": "Watchlists/AIGS_ApprovedCopilotPlugins/AIGS_ApprovedCopilotPlugins.csv"
-      },
-      "AIGS_M365CopilotBaseline": {
-        "guid": "855b82c3-e9fe-416a-ad0f-41db79f6433b",
-        "displayName": "AIGS - M365 Copilot Baseline",
-        "searchKey": "ItemKey",
-        "owner": "tank (metadata) / neo (csv data)",
-        "status": "unresolved — pending future batch",
-        "metadataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.json",
-        "dataFile": "Watchlists/AIGS_M365CopilotBaseline/AIGS_M365CopilotBaseline.csv"
       },
       "AIGS_PurviewPolicies": {
         "guid": "b9d2c40e-d726-4e34-99a7-4a55b5303757",
@@ -198,7 +214,7 @@
       "AIGS-PA002-ContentFilterMissingModel": {
         "guid": "38992355-e589-4fae-88a8-c3317f753cf7",
         "displayName": "[AIGS] Posture - Content Filter Policy Missing from Deployed Model",
-        "module": "C",
+        "module": "A",
         "owner": "neo",
         "status": "unresolved — KQL authoring pending neo",
         "file": "Analytic Rules/AIGS-PA002-ContentFilterMissingModel.yaml"
@@ -210,7 +226,7 @@
         "displayName": "AIGS - Hunt - Unauthorized Copilot Plugin Access",
         "module": "C",
         "owner": "neo",
-        "status": "unresolved — KQL authoring pending neo",
+        "status": "unresolved — Operation/RecordType-value dependent; blocked pending schema proof that Operation column is queryable in CopilotActivity",
         "file": "Hunting Queries/AIGS-Hunt-UnauthorizedPluginAccess.yaml"
       },
       "AIGS-Hunt-ShadowAIApplicationDiscovery": {

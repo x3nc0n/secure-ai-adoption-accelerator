@@ -52,5 +52,13 @@
     "metadata": {
       "description": "Unique id for the watchlist"
     }
+  },
+  "watchlist4-id": {
+    "type": "string",
+    "defaultValue": "AIGS_M365CopilotBaseline",
+    "minLength": 1,
+    "metadata": {
+      "description": "Unique id for the watchlist"
+    }
   }
 }

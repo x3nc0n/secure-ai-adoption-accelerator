@@ -8,6 +8,7 @@
 ## Learnings
 
 - Playbooks are desired, especially when integrated with Security Copilot.
+- **Version label discipline:** Human-facing docs (PREREQUISITES.md line 3, ReleaseNotes.md section headers, CHANGELOG.md heading) must be updated atomically with every package version bump. The official generator writes back `_solutionVersion` to the data manifest but does not touch Markdown docs — these are Tank's packaging responsibility. When the reviewer catches a mismatch, fix only the three doc surfaces; never touch YAML/KQL content. CHANGELOG `[Unreleased]` heading should also have its footer reference link updated to point from the new tag.
 - Automation must account for cross-platform identity, permissions, approvals, and rollback.
 - Security Copilot Logic Apps connector is **GA** (since April 1, 2024) but does **NOT** support Managed Identity — requires OAuth user account or client certificate. This is a hard architectural constraint for all enrichment playbooks.
 - Power Platform API (Copilot Studio agent disable) has no native Logic Apps connector. Requires HTTP action + Power Platform Environment Admin role on the MI, which is outside Azure RBAC (must be set in PPAC). This is a non-standard permission setup blocker.

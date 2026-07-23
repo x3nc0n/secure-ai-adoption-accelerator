@@ -2,6 +2,24 @@
 
 ---
 
+## v3.0.5-preview.1 — M365 Copilot Module C Batch
+
+**Release date:** 2026-07-23
+**Release type:** Preview
+**Scope:** Module C Microsoft 365 Copilot vertical slice — observed-state model binding drift
+
+- Added `AIGS-CD003-CopilotAgentModelDrift`: fail-closed inner-join detection of M365 Copilot agent model drift. Runs every 1 hour, 2-hour lookback, `arg_max` latest observed state per AgentId, inner-joined to Active `AIGS_M365CopilotBaseline` rows. Blank expected model/version disables per-property comparison.
+- Added `AIGS-Hunt-CopilotAgentModelInventory`: observed-state inventory of all Copilot agents and distinct AI model bindings. Use output to populate `AIGS_M365CopilotBaseline` before enabling drift detection.
+- Added `AIGS_M365CopilotBaseline` watchlist (schema: `ItemKey,AgentId,AgentName,ExpectedModelName,ExpectedModelVersion,AppHost,Status,BaselineOwner,LastReviewed,Notes`; `itemsSearchKey=ItemKey`; Template row only shipped).
+- Added workbook Module C tiles: agent/model inventory and model drift against baseline (isfuzzy-guarded, missing-table safe).
+- Rewrote PREREQUISITES Module C: documents observed-state detection basis, direct-KQL non-ASIM, GA connector ID (`MicrosoftCopilot`), baseline workflow, and explicit scope boundary (lifecycle operations not in this pass).
+- Moved `AIGS-PA002-ContentFilterMissingModel` roadmap entry from module C to module A (GUID and path preserved; not built this pass).
+- Connector verified GA: `connectorId=MicrosoftCopilot`, `CopilotActivity`, `availabilityStatus=1`, `isPreview=false`.
+
+**Design basis:** Morpheus Module C Design Gate (`morpheus-module-c-design-gate.md`). Operation-dependent plugin/promptbook lifecycle detections remain roadmap-only pending column schema confirmation.
+
+---
+
 ## v3.0.3-preview.1 — Agent 365 Preview Batch
 
 **Release date:** 2026-07-22

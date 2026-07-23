@@ -1,7 +1,7 @@
 # PREREQUISITES — Microsoft Sentinel – AI Governance Solution
 
-**Solution version:** v3.0.1-preview.1
-**Last updated:** 2026-07-17
+**Solution version:** v3.0.5-preview.1
+**Last updated:** 2026-07-23
 
 ---
 
@@ -193,42 +193,81 @@ hunt returns active inventory for baseline seeding; it does not claim compliance
 
 ## Module C — M365 Copilot
 
-**Status:** 🔵 Designed
+**Status:** ✅ Preview implementation  
 **Modules deployed by default:** Enabled when `enablePreviewModules = true` (requires connector)
+
+### Detection Scope — Observed-State Model Binding Drift
+
+Module C detects **observed-state, expected-state model binding drift**: it compares the AI model
+name and version observed in `CopilotActivity` events for each Copilot agent against the approved
+binding recorded in the `AIGS_M365CopilotBaseline` watchlist. A finding is produced only when the
+observed model or version differs from the approved value for a baselined agent.
+
+This is **not** plugin settings drift, plugin lifecycle detection, or content-based analysis.
+Module C uses direct-KQL against `CopilotActivity` with no ASIM normalization parser and no
+custom parser dependency. Lifecycle operations (plugin create/update/delete/enable/disable,
+promptbook, tenant settings) are **not** detected in this pass — they depend on the `Operation`
+column, which is not in the published `CopilotActivity` table schema and cannot be safely
+referenced in scheduled analytic content.
 
 ### Data Source
 
 | Item | Details |
 |------|---------|
-| **Connector** | Microsoft Copilot Data Connector ⚠️ **Preview** (Content Hub) |
-| **Table** | `CopilotActivity` ⚠️ **Preview** |
-| **ASIM** | Custom: `AIGS_CopilotActivity_Normalized` (not ASIM; solution-specific normalization) |
-| **Verification query** | `CopilotActivity \| where Workload has "MicrosoftCopilot" \| take 1` |
+| **Connector** | Microsoft Copilot (`MicrosoftCopilot`) — **GA** (Content Hub) |
+| **Table** | `CopilotActivity` |
+| **ASIM** | N/A — direct-KQL; no `_Im*` ASIM parser applicable to `CopilotActivity` |
+| **Verified schema** | 24 documented columns per Microsoft Learn (updated 2026-05-06) |
+| **Verification query** | `CopilotActivity \| take 1` |
 
 ### License Requirements
 
 | Requirement | Notes |
 |-------------|-------|
-| Microsoft 365 Copilot license | Required for Copilot plugin activity to appear |
-| Microsoft Purview audit logging enabled | `CopilotActivity` is sourced from Purview UAL |
+| Microsoft 365 Copilot license | Required for CopilotActivity events to be generated |
+| Microsoft Purview audit logging enabled | `CopilotActivity` is sourced from Purview UAL (15–60 min ingest lag) |
+| Microsoft Sentinel workspace | Any SKU |
 
 ### Watchlists Used
 
-| Watchlist | Purpose | Key Column |
+| Watchlist | Purpose | Detection Join Key |
 |-----------|---------|-----------|
-| `AIGS_ApprovedCopilotPlugins` | Approved Copilot plugin names and approved states | `ItemKey` = plugin name |
-| `AIGS_M365CopilotBaseline` | M365 Copilot configuration baseline | `ItemKey` = configuration key |
+| `AIGS_M365CopilotBaseline` | Approved Copilot agent → AI model binding baseline | `AgentId` (detection join; `ItemKey` is the search index) |
 
 ### Analytic Rules
 
 | Rule ID | Name | Table | Severity | Confidence |
 |---------|------|-------|----------|-----------|
-| `AIGS-CD003` | Unauthorized Copilot Plugin Added Outside Approved List | `CopilotActivity` | High | High (deterministic watchlist comparison) |
+| `AIGS-CD003` | M365 Copilot Agent Model Drift from Baseline | `CopilotActivity` | Medium | High (deterministic inner-join; fail-closed) |
+
+`AIGS-CD003` runs every 1 hour, looks back 2 hours (accounts for Purview UAL ingest lag), and
+selects the latest observed state per `AgentId` via `arg_max(TimeGenerated, *)`. An absent,
+empty, or template-only `AIGS_M365CopilotBaseline` produces zero results. A blank
+`ExpectedModelName` or `ExpectedModelVersion` in a baseline row disables comparison for that
+property only.
+
+### Hunting Query
+
+`AIGS-Hunt-CopilotAgentModelInventory` surfaces all observed Copilot agents, their distinct AI
+model names, versions, and host applications over the selected time range. Use this inventory
+as the basis for populating `AIGS_M365CopilotBaseline` before enabling drift detection.
+
+### Baseline Workflow
+
+1. Run `AIGS-Hunt-CopilotAgentModelInventory` to discover observed agent/model bindings.
+2. For each agent to govern, add a row to `AIGS_M365CopilotBaseline` with `Status=Active`,
+   the approved `ExpectedModelName` and `ExpectedModelVersion`, and a `BaselineOwner`.
+3. Leave `ExpectedModelName` or `ExpectedModelVersion` blank to skip comparison for that
+   property for a given agent.
+4. `AIGS-CD003` will begin producing findings on the next scheduled run.
 
 ### Known Limitations
 
-- `CopilotActivity` and the Microsoft Copilot Data Connector are in public preview. Table schema and RecordType values may change.
-- `CloudAppEvents` is **not** the authoritative table for plugin management events — it lacks confirmed ActionType values for plugin lifecycle operations. Do not use `CloudAppEvents` as the primary source for this module.
+- **No lifecycle operation detection this pass.** The `Operation` column is documented separately in Purview audit-log-activities but is not listed in the published `CopilotActivity` table schema. Plugin lifecycle, promptbook, and tenant settings operations cannot be safely referenced in scheduled analytic content until the column is confirmed as queryable. These scenarios remain roadmap-only.
+- **Observed-state only.** `CopilotActivity` records what model was observed per interaction event, not configuration changes or admin actions. Model drift is inferred from observed behavior, not from an authoritative config-change event.
+- **UAL ingest lag.** Purview UAL-sourced events have a 15–60 minute ingest delay. The 1h/2h frequency/lookback window accounts for this lag.
+- **`LLMEventData` contents not documented.** The `LLMEventData` dynamic column exists in the schema but its sub-fields are not published. No Module C content references `LLMEventData` sub-fields.
+- **`AccessedResources` not in table schema.** This field is mentioned in Purview audit context documentation but is not listed in the `CopilotActivity` column list. It is never referenced in Module C content.
 
 ---
 

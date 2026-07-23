@@ -1,0 +1,128 @@
+id: 72eb1408-feda-5533-a0fc-6d622e938011
+name: "[AIGS] Config Drift - M365 Copilot Agent Model Drift from Baseline"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Compares the latest observed CopilotActivity AI model binding per Copilot agent against the
+  approved model name and version recorded in AIGS_M365CopilotBaseline. A result is produced
+  when an observed AIModelName or AIModelVersion differs from the approved value for that AgentId.
+
+  This is observed-state expected-state comparison — not plugin settings drift, lifecycle
+  operation detection, or LLMEventData-based content analysis. Detection depends entirely on
+  the agent model fields CopilotActivity records per interaction event.
+
+  FAIL-CLOSED: Only Status=Active watchlist entries participate through an inner join. An absent,
+  empty, or template-only AIGS_M365CopilotBaseline yields zero results. An AgentId not present
+  in the Active baseline is out of scope by construction. A blank ExpectedModelName or
+  ExpectedModelVersion in the baseline row disables comparison for that property.
+
+  Module C uses direct-KQL against CopilotActivity with no ASIM normalization parser. Operation,
+  AccessedResources, LLMEventData contents, PluginId, UserKey, ItemName, and PluginVersion are
+  not documented columns in the authoritative table schema and are never referenced.
+
+  ASIM: N/A — CopilotActivity is direct-KQL, non-ASIM; no _Im* parser applicable.
+
+  Module:   C - Microsoft 365 Copilot [Preview]
+  Control:  AIGS-CD003
+  Domain:   Configuration Drift (CD)
+  Response: PB-NOTIFY-01 (notify and validate authorization)
+  Baseline: AIGS_M365CopilotBaseline watchlist (Status=Active; match on AgentId)
+  MCSB:     AM-2 (Use only approved services), AM-5 (Use only approved applications)
+  NIST AI RMF: GOVERN-1.3, MAP-5.1, MANAGE-2.2
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: MicrosoftCopilot
+    dataTypes:
+      - CopilotActivity
+queryFrequency: 1h
+queryPeriod: 2h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+query: |
+  // PREREQUISITE: CopilotActivity — Microsoft Copilot Data Connector (GA) required.
+  // ASIM: N/A — CopilotActivity direct-KQL, non-ASIM; no _Im* parser applicable.
+  // Control: AIGS-CD003 — M365 Copilot Agent Model Drift from Baseline
+  // FAIL-CLOSED: inner join to Active AIGS_M365CopilotBaseline rows only.
+  // Empty or absent baseline yields zero results. No leftanti / !in anti-join used.
+  // Only documented CopilotActivity columns used (§5.7 allowlist enforced).
+  let Baseline = materialize(
+      _GetWatchlist("AIGS_M365CopilotBaseline")
+      | where Status =~ "Active"
+      | project
+          WL_AgentId           = tolower(tostring(AgentId)),
+          WL_AgentName         = tostring(AgentName),
+          WL_ExpectedModel     = tostring(ExpectedModelName),
+          WL_ExpectedVersion   = tostring(ExpectedModelVersion),
+          WL_Owner             = tostring(BaselineOwner)
+  );
+  union isfuzzy=true
+      (CopilotActivity
+       | where TimeGenerated >= ago(2h)
+       | project
+           TimeGenerated, TenantId, Workload, AppHost, RecordType,
+           AgentId, AgentName, AIModelName, AIModelVersion,
+           ActorName, ActorUserId, SrcIpAddr
+       | summarize arg_max(TimeGenerated, *) by AgentId
+       | extend NormalizedAgentId = tolower(tostring(AgentId))),
+      (print TimeGenerated = datetime(null), TenantId = '', Workload = '', AppHost = '',
+             RecordType = '', AgentId = '', AgentName = '', AIModelName = '',
+             AIModelVersion = '', ActorName = '', ActorUserId = '', SrcIpAddr = '',
+             NormalizedAgentId = ''
+       | where false)
+  | join kind=inner (Baseline) on $left.NormalizedAgentId == $right.WL_AgentId
+  | extend
+      ModelDrift   = isnotempty(WL_ExpectedModel)
+                     and tolower(AIModelName) != tolower(WL_ExpectedModel),
+      VersionDrift = isnotempty(WL_ExpectedVersion)
+                     and tolower(AIModelVersion) != tolower(WL_ExpectedVersion)
+  | where ModelDrift or VersionDrift
+  | extend
+      DriftType = case(
+          ModelDrift and VersionDrift, "Model name and version drift",
+          ModelDrift,                  "Model name drift",
+          "Model version drift"
+      ),
+      DriftFinding = strcat(
+          "Observed model/version: ", AIModelName, "/", AIModelVersion,
+          "; approved model/version: ", WL_ExpectedModel, "/", WL_ExpectedVersion,
+          ". Validate whether the model change was authorized."
+      )
+  | project
+      TimeGenerated, AgentId, AgentName, Workload, AppHost, RecordType,
+      AIModelName, AIModelVersion, ActorName, ActorUserId, SrcIpAddr, TenantId,
+      WL_AgentName, WL_ExpectedModel, WL_ExpectedVersion, WL_Owner,
+      ModelDrift, VersionDrift, DriftType, DriftFinding
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: ActorName
+      - identifier: AadUserId
+        columnName: ActorUserId
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: Name
+        columnName: AgentName
+      - identifier: AppId
+        columnName: AgentId
+customDetails:
+  AgentId: AgentId
+  DriftType: DriftType
+  ObservedModel: AIModelName
+  ApprovedModel: WL_ExpectedModel
+  ObservedVersion: AIModelVersion
+  ApprovedVersion: WL_ExpectedVersion
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-CD003: {{DriftType}} for Copilot Agent {{AgentName}}"
+  alertDescriptionFormat: "{{DriftFinding}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

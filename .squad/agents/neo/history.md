@@ -225,3 +225,79 @@ Outside-Approved-Regions hunt. Inputs: `switch-corrected-implementation-contract
 - ❌ `AIAgentsInfo` → ✅ **Document migration to `AgentsInfo` (deadline July 1, 2026)** as schema stability risk for Stage 1/2 content
 
 **Evidence source:** Azure-Sentinel repo (SHA `29e1987d1015171e4c9687edfd31170902b59c7a`), Microsoft Learn (2026-07-16)
+
+
+---
+
+## Session: 2026-07-23 — Module C Implementation (M365 Copilot Vertical Slice)
+
+**Objective:** Author and package the Module C vertical slice per Morpheus design gate.
+
+### What Was Built
+
+1. **`AIGS-CD003-CopilotAgentModelDrift.yaml`** (GUID `72eb1408-feda-5533-a0fc-6d622e938011`):
+   Fail-closed scheduled analytic rule. Materializes Active AIGS_M365CopilotBaseline rows, inner-joins
+   CopilotActivity (isfuzzy-guarded with typed fallback) via normalized AgentId, selects latest observed
+   state via arg_max(TimeGenerated, *) by AgentId, and fires when observed AIModelName or AIModelVersion
+   differs from approved. Blank expected values disable per-property comparison. queryFrequency: 1h,
+   queryPeriod: 2h. requiredDataConnectors: MicrosoftCopilot (verified GA).
+
+2. **`AIGS-Hunt-CopilotAgentModelInventory.yaml`** (GUID `d6ddbee1-0c89-5d14-9902-501192433570`):
+   Observed-state inventory hunt. Summarizes distinct AI model names, versions, and host applications
+   per AgentId/AgentName/Workload over 14d. No watchlist dependency. No Operation references.
+   isfuzzy-guarded with typed fallback.
+
+3. **`AIGS_M365CopilotBaseline`** watchlist (GUID `855b82c3-e9fe-416a-ad0f-41db79f6433b`):
+   CSV columns: `ItemKey,AgentId,AgentName,ExpectedModelName,ExpectedModelVersion,AppHost,Status,
+   BaselineOwner,LastReviewed,Notes`. itemsSearchKey=ItemKey. Template row only shipped.
+
+4. **Workbook updates**: Added M365 Copilot Agent Model Inventory tile and Model Drift tile to Module
+   Coverage tab. Updated Module Inventory datatable, Module Health tile, and ASIM applicability table.
+   All tiles use isfuzzy=true with typed fallback.
+
+5. **guids.json**: Promoted AIGS-CD003, AIGS-Hunt-CopilotAgentModelInventory, and AIGS_M365CopilotBaseline
+   to main body with status:resolved. Moved AIGS-PA002 from module C to module A in _roadmap (GUID and
+   path preserved). Updated AIGS-Hunt-UnauthorizedPluginAccess roadmap status with blocker reason.
+
+6. **Solution_AIGovernance.json**: Version bumped to 3.0.5 (per generator write-back). New analytic
+   rule, hunting query, and watchlist wired in.
+
+7. **PREREQUISITES.md**: Module C rewritten from scratch. Explicitly documents: observed-state model
+   binding drift detection basis; direct-KQL non-ASIM; GA connector (connectorId=MicrosoftCopilot);
+   baseline workflow; Operation column roadmap boundary.
+
+8. **Package v3.0.5**: Generated via createSolutionV3.ps1 from Azure-Sentinel checkout (tool lives at
+   Azure-Sentinel/Tools/Create-Azure-Sentinel-Solution/V3/). 17 resources: +1 analytic rule, +1 hunting
+   query, +1 watchlist vs previous 3.0.3.
+
+### Validation Result
+Source validator: **14 checks, 112 passes, 0 warnings, 0 failures** (including Check 12 package
+validation with 17-resource mainTemplate.json). ARM TTK 4 existing failures are pre-existing
+empty-property issues unrelated to Module C content.
+
+### Key Learnings
+
+- **Package generator requires path with "Solutions" at index > 0**: The generator parses the path
+  to find `Solutions`, derives `$repositoryBasePath` as everything before it, then looks for
+  `Tools/Create-Azure-Sentinel-Solution/common/commonFunctions.ps1` relative to that base. Running
+  from the Azure-Sentinel repo checkout with `./Solutions/...` path resolves all dependencies
+  correctly. Alternatively, copy the solution to Azure-Sentinel checkout temporarily, run, copy
+  Package back.
+
+- **Generator bumps version before writing**: `-VersionMode local -VersionBump patch` reads the data
+  file version, increments it, writes back to the data file copy, and uses the incremented version
+  for the package. Source repo data file must be updated manually to match after copying the package.
+
+- **CopilotActivity connector is GA (not preview)**: Trinity verified connectorId=MicrosoftCopilot,
+  availabilityStatus=1, isPreview=false in Azure-Sentinel master. Safe to include in
+  requiredDataConnectors for MVP content.
+
+- **Module C is non-ASIM, direct-KQL**: No ASIM promotion, no custom parser dependency. ASIM comment
+  must be `// ASIM: N/A — CopilotActivity direct-KQL, non-ASIM; no _Im* parser applicable` to pass
+  Check 7. Do not claim custom parsers as ASIM equivalents.
+
+- **AIGS-PA002 was mis-assigned module C**: It is an Azure OpenAI content-filter posture rule, naturally
+  belonging to module A. Reassigned in guids.json _roadmap (GUID/path preserved).
+
+### Decision Filed
+`.squad/decisions/inbox/neo-module-c-implementation.md`

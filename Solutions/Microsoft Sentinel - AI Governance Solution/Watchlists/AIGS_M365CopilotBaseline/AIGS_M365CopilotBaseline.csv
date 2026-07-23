@@ -1,0 +1,2 @@
+ItemKey,AgentId,AgentName,ExpectedModelName,ExpectedModelVersion,AppHost,Status,BaselineOwner,LastReviewed,Notes
+COPILOT-TEMPLATE-001,00000000-0000-0000-0000-000000000001,Example Copilot Agent,gpt-4o,2024-08-06,Teams,Template,security@example.com,2026-07-23,Replace this template row and set Status to Active to enable drift detection

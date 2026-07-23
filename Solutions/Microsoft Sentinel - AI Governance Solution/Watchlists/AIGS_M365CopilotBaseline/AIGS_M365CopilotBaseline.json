@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Log Analytics workspace hosting Microsoft Sentinel."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/AIGS_M365CopilotBaseline')]",
+      "properties": {
+        "displayName": "AIGS - M365 Copilot Baseline",
+        "provider": "x3nc0n",
+        "description": "Approved M365 Copilot agent model binding baseline used by Module C configuration-drift content. AgentId is the detection join key. ExpectedModelName and ExpectedModelVersion are per-property comparison values; a blank value disables comparison for that property. Replace the shipped Status=Template row with reviewed entries from the AIGS-Hunt-CopilotAgentModelInventory hunt output and set Status=Active to enable fail-closed drift detection (AIGS-CD003).",
+        "source": "Local file",
+        "itemsSearchKey": "ItemKey",
+        "contentType": "text/csv",
+        "numberOfLinesToSkip": 0,
+        "rawContent": "ItemKey,AgentId,AgentName,ExpectedModelName,ExpectedModelVersion,AppHost,Status,BaselineOwner,LastReviewed,Notes\nCOPILOT-TEMPLATE-001,00000000-0000-0000-0000-000000000001,Example Copilot Agent,gpt-4o,2024-08-06,Teams,Template,security@example.com,2026-07-23,Replace this template row and set Status to Active to enable drift detection"
+      }
+    }
+  ]
+}

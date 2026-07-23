@@ -1,0 +1,65 @@
+id: d6ddbee1-0c89-5d14-9902-501192433570
+name: "AIGS - Hunt - M365 Copilot Agent Model Inventory"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Discovers all M365 Copilot agents and their observed AI model bindings from CopilotActivity.
+  Summarizes distinct AI model names, model versions, and host applications per AgentId and
+  AgentName. Use this inventory as the basis for populating AIGS_M365CopilotBaseline with
+  approved model bindings (ExpectedModelName, ExpectedModelVersion) before enabling the
+  AIGS-CD003 drift detection rule.
+
+  This hunt produces observed-state inventory only. It does not assess compliance, compare
+  against any approved baseline, or indicate whether observed models are authorized.
+  Results are discovery evidence and never a compliance determination.
+
+  Module C uses direct-KQL against CopilotActivity with no ASIM normalization parser. Operation,
+  AccessedResources, LLMEventData contents, PluginId, UserKey, and ItemName are not referenced.
+
+  ASIM: N/A — CopilotActivity direct-KQL, non-ASIM; no _Im* parser applicable.
+
+  Module:   C - Microsoft 365 Copilot [Preview]
+  Hunt ID:  AIGS-Hunt-CopilotAgentModelInventory
+  Purpose:  Baseline seeding — populate AIGS_M365CopilotBaseline from observed inventory
+  MCSB:     AM-2 (Use only approved services)
+  NIST AI RMF: GOVERN-1.3, MAP-5.1
+severity: Informational
+status: Available
+requiredDataConnectors:
+  - connectorId: MicrosoftCopilot
+    dataTypes:
+      - CopilotActivity
+tactics: []
+relevantTechniques: []
+query: |
+  // PREREQUISITE: CopilotActivity — Microsoft Copilot Data Connector (GA) required.
+  // ASIM: N/A — CopilotActivity direct-KQL, non-ASIM; no _Im* parser applicable.
+  // Hunt: AIGS-Hunt-CopilotAgentModelInventory — observed-state model inventory.
+  // No watchlist dependency. No Operation or forbidden column references.
+  // Only documented CopilotActivity columns used (allowlist enforced).
+  union isfuzzy=true
+      (CopilotActivity
+       | where TimeGenerated >= ago(14d)
+       | project
+           TimeGenerated, AgentId, AgentName, Workload, AppHost,
+           AIModelName, AIModelVersion, ActorName, ActorUserId
+       | summarize
+           EventCount        = count(),
+           ObservedModels    = make_set(AIModelName),
+           ObservedVersions  = make_set(AIModelVersion),
+           ObservedAppHosts  = make_set(AppHost),
+           FirstSeen         = min(TimeGenerated),
+           LastSeen          = max(TimeGenerated)
+         by AgentId, AgentName, Workload),
+      (print AgentId = '', AgentName = '', Workload = '',
+             EventCount = 0, ObservedModels = dynamic([]),
+             ObservedVersions = dynamic([]), ObservedAppHosts = dynamic([]),
+             FirstSeen = datetime(null), LastSeen = datetime(null)
+       | where false)
+  | order by LastSeen desc
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

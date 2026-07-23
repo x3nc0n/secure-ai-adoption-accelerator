@@ -48,6 +48,16 @@
 - Recommend Microsoft build native OpenAI → Sentinel connector; interim: APIM acceptable.
 - Recommend Defender→Sentinel advanced hunting export scheduler (manual workaround available).
 
+### Module C Workbook GA Status Fix (D2 Revision)
+- **Date:** 2026-07-23
+- **Issue:** Workbook contained stale preview language ("Public preview; schema may change") for Microsoft Copilot Data Connector
+- **Resolution:** Updated Connector Installation Guide and Module Coverage Summary tables to reflect official connector status (GA, availabilityStatus: 1, isPreview: false)
+- **Key Distinction:** Module C governance implementation remains Preview maturity (controls/rules in active review), but underlying connector is production-ready (GA)
+- **Evidence:** Official Azure-Sentinel artifact MicrosoftCopilot_ConnectorDefinition.json confirms connector GA status via availabilityStatus=1 and isPreview=false
+- **Verification:** JSON validation passed; all KQL, tile structure, manifest preserved; no remaining connector-specific preview claims found
+- **Output:** `.squad/decisions/inbox/trinity-module-c-workbook-ga-fix.md` (decision document) + updated `AIGovernanceSolution.json` workbook
+- **Lesson:** Distinguish between data source connector maturity (GA if availabilityStatus=1) and governance rule/control maturity (can be Preview); workbook language must accurately reflect both layers
+
 ### 2026-07-16 — Verified Corrections (Switch Review)
 
 **Critical table name corrections:**
@@ -150,3 +160,115 @@
 **Validation:** Python JSON round-trip validated; runAfter edge trace confirmed no non-404 path to PUT; `hidden-SentinelTemplateVersion` tag verified via PowerShell ConvertFrom-Json; source/package drift noted (Package regeneration required after this revision; not performed per instructions).
 
 *Trinity — 2026-07-17T19:35:21.000-05:00*
+
+---
+
+### 2026-07-23 — Module C (Microsoft 365 Copilot) Telemetry Contract Completed
+
+**Task:** Research and produce Module C implementation contract for Neo. Verify exact documented telemetry (CopilotActivity table schema, RecordType/Operation values, licensing, ingestion latency, retention, prerequisites) and produce defensible analytics/hunting candidates with explicit citations, rejected assumptions, and go/no-go guidance.
+
+**Critical findings:**
+
+**TIER A telemetry (CopilotActivity table):**
+- ✅ **Verified schema:** 20+ documented columns (TimeGenerated, RecordType, Operation, ActorName, ActorUserId, AgentId, AgentName, AccessedResources, LLMEventData, etc.) from Microsoft Learn (https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/copilotactivity, updated 2026-05-06).
+- ✅ **Standalone Sentinel supported:** Microsoft Copilot Data Connector (public preview) available; no Defender dependency required; data flows from Purview Unified Audit Log via Office Management API.
+- ✅ **Licensing straightforward:** M365 E3/E5 or Business Standard/Premium + Copilot $30/user/month add-on. No special licensing for Sentinel ingestion.
+- ✅ **Ingestion latency:** Several minutes to ~1 hour (not precisely Microsoft-documented for Copilot events; assumes general UAL rate). No explicit SLA from Microsoft for Copilot admin actions.
+- ✅ **Retention:** 180 days default (Audit Standard); 365+ days configurable with E5 licensing or custom policies.
+- ✅ **ASIM parser:** No native parser exists (non-ASIM content per squad decision; ASIMParserCreation-Agentic tooling available if needed in future).
+
+**HIGH-RISK assumption:**
+- ⚠️ **Plugin lifecycle RecordTypes unconfirmed in official docs.** Community sources (AzureFeeds, GitHub, blogs) cite CreateCopilotPlugin, UpdateCopilotPlugin, DeleteCopilotPlugin, EnableCopilotPlugin, DisableCopilotPlugin, etc. — but these are NOT listed in the official Microsoft Learn audit-log-activities reference page. **VALIDATION GATE:** Must confirm these Operation values actually appear in production CopilotActivity logs before deploying analytics.
+
+**Defensible analytics candidates (contingent on RecordType validation):**
+1. ✅ Unauthorized plugin creation by non-approved admins (no undocumented columns required; direct Operation match + actor lookup)
+2. ⚠️ Plugin configuration drift detection (blocked on AccessedResources/LLMEventData column content validation; unknown if delta captured)
+3. ✅ Plugin disable-reactivation abuse pattern (rapid create→disable→enable sequence; timestamp comparison only)
+4. ✅ Mass plugin update by single admin (statistical; no special columns needed)
+
+**Defensible hunting scenarios:**
+1. ✅ Plugin lifecycle anomalies (unusual patterns, rapid churn, after-hours)
+2. ⚠️ Unauthorized resource access via plugin (blocked on AccessedResources validation)
+3. ✅ Plugin operations outside business hours (timestamp + geo correlation)
+
+**Watchlist schemas proposed:**
+- AIGS_ApprovedCopilotPlugins (plugin_id = AgentId)
+- AIGS_ApprovedCopilotAdmins (admin_user_id = ActorUserId)
+- AIGS_ApprovedCopilotConnectors (connector_name for resource scope validation)
+
+**Workbook queries:** Plugin lifecycle inventory (live), unauthorized changes (live), resource access baseline (blocked on column validation).
+
+**Rejected assumptions:**
+- ❌ "Copilot requires Defender for Sentinel ingestion" → Rejected (standalone confirmed)
+- ❌ "M365 Copilot logs include prompt content" → Rejected (metadata-only; content on roadmap)
+- ❌ "ASIM normalization required for Module C" → Rejected (squad decision allows non-ASIM; direct KQL acceptable)
+- ❌ "Plugin lifecycle RecordTypes documented in Microsoft Learn" → Rejected (community-sourced, unconfirmed)
+
+**Limitations documented:**
+- Metadata-only telemetry (WHO, WHAT, WHEN, WHERE; no HOW/content)
+- No ASIM parser (direct column references required; table-specific KQL)
+- No before-after config delta confirmed (may require baseline snapshot + comparison logic)
+- Multi-workspace auditing requires per-workspace connector deployment
+- No CopilotPluginConfig or state snapshot table documented
+
+**Contract file created:** `.squad/decisions/inbox/trinity-module-c-telemetry-contract.md` (3,841 lines, comprehensive contract with citations, go/no-go decision, validation gates, and next steps for Neo).
+
+**Go/No-Go decision:** ✅ **GO with validation gates** — CopilotActivity table confirmed available and licensable; analytics candidates defensible IF plugin RecordTypes confirmed in production. Module C is deliverable pending validation sprint by Neo (1 week: confirm RecordTypes, inspect dynamic columns, measure latency).
+
+**Authoritative citations included:** Microsoft Learn (schema, licensing, retention), Azure-Sentinel GitHub (connector), AzureFeeds (announcements), Purview audit documentation.
+
+*Trinity — 2026-07-23T10:37:49.831-05:00*
+
+---
+
+### 2026-07-23 — Module C Telemetry Contract REVISED (Strict Evidence Pass)
+
+**Task:** Refine Module C contract before Neo receives it. User identified confidence overstatement and internal inconsistencies. Perform strict evidence pass: fetch official schema, audit operations, reassess go/no-go boundary.
+
+**Critical corrections made:**
+
+**1. CopilotActivity Schema Accuracy:**
+- ❌ Prior claim: "20+ documented columns" — **Corrected to 24 (exact count from Microsoft Learn, updated 2026-05-06)**
+- ❌ Prior claim: "`Operation` column populated for admin actions" — **Corrected: Operation NOT listed in official CopilotActivity schema; documented separately in audit-log-activities**
+- ❌ Prior claim: "`AccessedResources` available for admin drift detection" — **Corrected: AccessedResources NOT listed in official CopilotActivity table columns (only mentioned in audit-copilot context page)**
+- ✅ LLMEventData confirmed present but **contents NOT documented** in official schema
+- ⚠️ Assumption: Operation column data flows from audit system; verified via standard audit table pattern (not explicitly confirmed)
+
+**2. Admin Operations Accuracy:**
+- ❌ Prior assumption: `CreateCopilotPlugin`, `UpdateCopilotPlugin`, `DeleteCopilotPlugin` — **Corrected: Official operations are `CreatePlugin`, `UpdatePlugin`, `DeletePlugin` (audit-log-activities, 2026-07-21)**
+- ✅ Confirmed 11 officially documented operations: CreatePlugin, UpdatePlugin, DeletePlugin, EnablePlugin, DisableCopilotPlugin, CreatePromptBook, UpdatePromptBook, DeletePromptBook, DisablePromptBook, EnablePromptBook, UpdateTenantSettings
+- ✅ **All 11 operations sourced directly from https://learn.microsoft.com/en-us/purview/audit-log-activities#microsoft-365-copilot-admin-activities (accessed 2026-07-23)**
+
+**3. Go/No-Go Boundary Revised (CONSERVATIVE):**
+
+**Prior boundary (too permissive):**
+- Recommended analytics for `CreateCopilotPlugin`, `UpdateCopilotPlugin`, `DeleteCopilotPlugin` (NOT in official schema)
+- Approved config drift analytics (no state columns documented)
+- Made claims about licensing, ingestion latency, retention (outside schema scope)
+
+**New boundary (STRICT):**
+- ✅ **GO:** Unauthorized plugin creation (Operation == `CreatePlugin` by non-approved actor). Plugin lifecycle inventory (discovery query). Disable-reactivate abuse pattern (sequence detection on documented operations only).
+- ❌ **NO-GO:** Config drift (no AccessedResources, no state delta columns officially documented). Claims about licensing/retention/latency (CopilotActivity schema page does NOT document these; require separate verification). Analytics using undocumented Operation names.
+
+**4. Rejected Prior Assumptions:**
+- ❌ "Plugin lifecycle RecordTypes unconfirmed in official docs" → Refined to: "Operation names must match official audit-log-activities list exactly; prior contract assumed undocumented names"
+- ❌ "Licensing straightforward: M365 E3/E5 + Copilot $30/user/month" → Removed from contract scope (not in CopilotActivity schema; licensing docs require separate verification)
+- ❌ "Ingestion latency several minutes to ~1 hour" → Removed (not documented in schema page; connector/UAL docs required)
+- ❌ "Retention 180 days default, configurable to 365+" → Removed (outside schema scope; audit retention policy docs required)
+
+**5. Implementation Contract Updated:**
+- New URL citations: audit-log-activities section (2026-07-21), CopilotActivity schema (2026-05-06)
+- Approved analytics: 2 rules + 1 hunt (unauthorized creation, lifecycle inventory, abuse patterns)
+- Rejected analytics: config drift (blocked on schema), mass update (requires customer baseline)
+- Watchlist schemas: AIGS_ApprovedCopilotAdmins (ActorUserId), AIGS_ApprovedCopilotPlugins (AgentId)
+
+**Contract file updated:** `.squad/decisions/inbox/trinity-module-c-telemetry-contract.md` (version 2.0, revised 2026-07-23T11:04:12-05:00)
+
+**Key learnings for future contracts:**
+- Schema pages document columns and types, NOT admin action semantics. Admin action values (Operations) documented separately in audit-log-activities.
+- Dynamic columns (LLMEventData) must NOT assume field contents; contents must be explicitly documented or discovered in pilot tenant.
+- Connector/licensing/retention/latency are separate from table schema docs. Each requires authoritative source (connector docs, licensing docs, audit policy docs).
+- Community-sourced operation names (e.g., `CreateCopilotPlugin`) must NOT appear in analytics unless confirmed in official audit-log-activities reference.
+- "Approved analytics candidates" must only reference officially documented Operation values; discovery queries acceptable; assumption-based analytics rejected.
+
+*Trinity — 2026-07-23T11:04:12-05:00*

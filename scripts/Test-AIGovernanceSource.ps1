@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Validates solution source files without requiring a deployed workspace or alert firing.
-    Runs twelve checks covering structure, syntax, uniqueness, security, and documentation.
+    Runs fourteen checks covering structure, syntax, uniqueness, security, and documentation.
     Exits with code 1 if any check fails; exits 0 if all pass.
 
     Concurrency note: If files expected by a check are not yet present (solution is partially
@@ -140,6 +140,24 @@ function ConvertFrom-SentinelDuration {
     if ($d -match '^P(\d+)D$')  { return [int]$Matches[1] * 1440 }
     if ($d -match '^P(\d+)W$')  { return [int]$Matches[1] * 10080 }
     return $null
+}
+
+# Extract the KQL query block from a Sentinel YAML file content string.
+# Returns the raw indented query text; empty string if the 'query: |' key is not found.
+# Block starts on a 'query: |' line and ends at the first non-indented line (same logic
+# used inline in Check 7 — kept as a shared helper to avoid duplication).
+function Get-YamlQueryBlock {
+    param([string]$Content)
+    $sb = [System.Text.StringBuilder]::new()
+    $inBlock = $false
+    foreach ($ql in ($Content -split "`r?`n")) {
+        if ($ql -match '^query:\s*\|') { $inBlock = $true; continue }
+        if ($inBlock) {
+            if ($ql.Length -gt 0 -and $ql[0] -notmatch '\s') { $inBlock = $false }
+            else { [void]$sb.AppendLine($ql) }
+        }
+    }
+    return $sb.ToString()
 }
 
 # Playbook directory name map keyed by canonical PB-* shortcodes used in YAML Response: lines.
@@ -287,6 +305,17 @@ if (Test-Path $ruleDir) {
                 Fail "YAML" "$rel — queryFrequency '$freqRaw' is not a parseable duration (expected e.g. 1h, 6h, 1d, PT1H, P1D)"
             } else {
                 Pass "YAML" "$rel — queryFrequency '$freqRaw' is valid ($freqMin min)"
+                # E4: Warn if a CopilotActivity-sourced rule runs shorter than 1h.
+                # Purview UAL (CopilotActivity's source) has a 15-60 min ingestion delay;
+                # sub-hourly runs miss events and can produce duplicate detections.
+                if ($freqMin -lt 60) {
+                    $qbForFreq = Get-YamlQueryBlock $content
+                    $qbNoComments = ($qbForFreq -split "`r?`n" |
+                        Where-Object { $_ -notmatch '^\s*//' }) -join "`n"
+                    if ($qbNoComments -match '\bCopilotActivity\b') {
+                        Warn "YAML" "$rel — CopilotActivity rule has queryFrequency '$freqRaw' ($freqMin min) shorter than 1h; Purview UAL ingestion delay is 15-60 min — raise to at least 1h to avoid missed or duplicate detections"
+                    }
+                }
             }
         }
 
@@ -363,11 +392,13 @@ if ($guidMap.Count -eq 0) {
     }
 }
 
-# Check guids.json registry if present
-$guidsRegistry = Join-Path $SolutionRoot "guids.json"
-if (Test-Path $guidsRegistry) {
+# Check guids.json registry if present; store at script scope for Check 6 (searchKey lookup)
+# and Check 13 (roadmap path existence gate).
+$guidsRegistryFile = Join-Path $SolutionRoot "guids.json"
+$script:GuidsRegistry = $null
+if (Test-Path $guidsRegistryFile) {
     try {
-        $registry = Get-Content $guidsRegistry -Raw | ConvertFrom-Json -ErrorAction Stop
+        $script:GuidsRegistry = Get-Content $guidsRegistryFile -Raw | ConvertFrom-Json -ErrorAction Stop
         Pass "GUID" "guids.json registry is valid JSON"
     } catch {
         Fail "GUID" "guids.json registry fails to parse: $($_.Exception.Message)"
@@ -580,12 +611,32 @@ if (-not (Test-Path $rootWlDir)) {
                         Pass "WATCHLIST" "Watchlists/$wlName/$wlName.json — Watchlist properties complete"
                     }
 
-                    # itemsSearchKey must be exactly "ItemKey"
+                    # itemsSearchKey must match the value declared in guids.json.
+                    # Default is "ItemKey" when the watchlist is not registered.
+                    # Watchlists with a non-standard searchKey (e.g. AIGS_ApprovedCopilotPlugins
+                    # declares "PluginId") are validated against the registry entry, not a
+                    # hardcoded default. The registry is checked in both the main body and
+                    # the _roadmap section to handle watchlists not yet promoted.
                     if ($props.PSObject.Properties.Name -contains 'itemsSearchKey') {
-                        if ($props.itemsSearchKey -cne 'ItemKey') {
-                            Fail "WATCHLIST" "Watchlists/$wlName/$wlName.json — itemsSearchKey is '$($props.itemsSearchKey)'; must be 'ItemKey'"
+                        $expectedSearchKey = 'ItemKey'  # default when not registered
+                        if ($script:GuidsRegistry) {
+                            $wlRegEntry = $null
+                            if ($script:GuidsRegistry.watchlists -and
+                                $script:GuidsRegistry.watchlists.PSObject.Properties.Name -contains $wlName) {
+                                $wlRegEntry = $script:GuidsRegistry.watchlists.$wlName
+                            } elseif ($script:GuidsRegistry._roadmap -and
+                                      $script:GuidsRegistry._roadmap.watchlists -and
+                                      $script:GuidsRegistry._roadmap.watchlists.PSObject.Properties.Name -contains $wlName) {
+                                $wlRegEntry = $script:GuidsRegistry._roadmap.watchlists.$wlName
+                            }
+                            if ($wlRegEntry -and $wlRegEntry.PSObject.Properties.Name -contains 'searchKey') {
+                                $expectedSearchKey = $wlRegEntry.searchKey
+                            }
+                        }
+                        if ($props.itemsSearchKey -cne $expectedSearchKey) {
+                            Fail "WATCHLIST" "Watchlists/$wlName/$wlName.json — itemsSearchKey is '$($props.itemsSearchKey)'; expected '$expectedSearchKey' (per guids.json registry)"
                         } else {
-                            Pass "WATCHLIST" "Watchlists/$wlName/$wlName.json — itemsSearchKey is 'ItemKey'"
+                            Pass "WATCHLIST" "Watchlists/$wlName/$wlName.json — itemsSearchKey is '$expectedSearchKey'"
                         }
                     }
 
@@ -1097,6 +1148,200 @@ if (-not $PackagePath) {
                 Fail "PACKAGE-CONTENT" "createUiDefinition.json — JSON parse error: $($_.Exception.Message)"
             }
         }
+    }
+}
+
+# ──────────────────────────────────────────────────────────────
+# CHECK 13: guids.json Roadmap — No Files Deployed at Roadmap Paths
+# ──────────────────────────────────────────────────────────────
+Write-CheckHeader "guids.json Roadmap — No Files Deployed at Roadmap Paths"
+
+# Every artifact registered under _roadmap in guids.json is planned but not yet authored.
+# If a file exists at a roadmap-registered path the guids.json entry must be promoted to
+# the main body (status: "resolved") before the solution is packaged.
+# A deployed file at a roadmap path would be picked up by createSolutionV3.ps1 without a
+# resolved GUID registry entry, producing a packaging error or a silent GUID gap.
+if (-not $script:GuidsRegistry) {
+    Pass "ROADMAP" "guids.json not present or not parsed — roadmap path check skipped"
+} elseif ($script:GuidsRegistry.PSObject.Properties.Name -notcontains '_roadmap') {
+    Pass "ROADMAP" "guids.json has no _roadmap section — no roadmap paths to check"
+} else {
+    $roadmapPaths = [System.Collections.Generic.List[hashtable]]::new()
+
+    foreach ($rmSection in @('analyticRules', 'huntingQueries')) {
+        $rmObj = $script:GuidsRegistry._roadmap.$rmSection
+        if (-not $rmObj) { continue }
+        foreach ($rmEntry in $rmObj.PSObject.Properties) {
+            $rmVal = $rmEntry.Value
+            if ($rmVal -and ($rmVal.PSObject.Properties.Name -contains 'file')) {
+                $roadmapPaths.Add(@{ EntryName = $rmEntry.Name; RelPath = [string]$rmVal.file })
+            }
+        }
+    }
+
+    if ($script:GuidsRegistry._roadmap.PSObject.Properties.Name -contains 'watchlists') {
+        foreach ($rmEntry in $script:GuidsRegistry._roadmap.watchlists.PSObject.Properties) {
+            $rmVal = $rmEntry.Value
+            foreach ($fk in @('metadataFile', 'dataFile')) {
+                if ($rmVal -and ($rmVal.PSObject.Properties.Name -contains $fk)) {
+                    $roadmapPaths.Add(@{ EntryName = $rmEntry.Name; RelPath = [string]$rmVal.$fk })
+                }
+            }
+        }
+    }
+
+    if ($roadmapPaths.Count -eq 0) {
+        Pass "ROADMAP" "guids.json _roadmap section has no registered file paths"
+    } else {
+        $roadmapViolations = 0
+        foreach ($rp in $roadmapPaths) {
+            if ([string]::IsNullOrWhiteSpace($rp.RelPath)) { continue }
+            $fullRmPath = Join-Path $SolutionRoot $rp.RelPath
+            if (Test-Path $fullRmPath) {
+                $roadmapViolations++
+                Fail "ROADMAP" "_roadmap entry '$($rp.EntryName)' has file deployed at '$($rp.RelPath)' — promote guids.json entry to main body and set status: 'resolved' before packaging"
+            }
+        }
+        if ($roadmapViolations -eq 0) {
+            Pass "ROADMAP" "$($roadmapPaths.Count) roadmap path(s) checked — none deployed prematurely"
+        }
+    }
+}
+
+# ──────────────────────────────────────────────────────────────
+# CHECK 14: Module C CopilotActivity — Forbidden Columns and Connector ID
+# ──────────────────────────────────────────────────────────────
+Write-CheckHeader "Module C CopilotActivity — Forbidden Columns and Connector ID"
+
+# E6: Fail when a YAML rule or hunt whose KQL query block references CopilotActivity also uses
+# column names that are unverified or invented.  These names must not appear as KQL tokens in
+# the non-comment portion of the query block.
+#
+# Connector: if requiredDataConnectors lists a connectorId in a CopilotActivity rule it must
+# equal the verified ID 'MicrosoftCopilot'.  Omitting connectorId entirely is allowed.
+#
+# False-positive mitigations (applied in order):
+#   1. Only inspect the parsed KQL query block (YAML description/prose is excluded).
+#   2. Strip KQL comment lines (// ...).
+#   3. Strip _GetWatchlist-based materialize blocks (line-scanner: accumulate from
+#      'let X = materialize(' through the matching ');'; discard if block contains _GetWatchlist).
+#      This prevents watchlist column names (e.g. PluginId in AIGS_ApprovedCopilotPlugins)
+#      from triggering false positives.
+#   4. Strip remaining _GetWatchlist("...") quoted argument strings.
+#   5. Only activate the forbidden-column and connector checks when CopilotActivity appears
+#      as a KQL token in the cleaned text.
+
+$copilotForbiddenColumns = @(
+    'Operation',
+    'AccessedResources',
+    'UserKey',
+    'ItemName',
+    'PluginId',
+    'PluginVersion',
+    'PolicyName',
+    'ContentFilterStatus'
+)
+
+# Collect all analytic rule and hunting query YAML files.
+$allYamlFiles = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
+if ($ruleDir -and (Test-Path $ruleDir)) {
+    Get-ChildItem -Path $ruleDir -Filter "*.yaml" -File -Recurse | ForEach-Object { $allYamlFiles.Add($_) }
+}
+if ($huntDir -and (Test-Path $huntDir)) {
+    Get-ChildItem -Path $huntDir -Filter "*.yaml" -File -Recurse | ForEach-Object { $allYamlFiles.Add($_) }
+}
+
+if ($allYamlFiles.Count -eq 0) {
+    Pass "MODULE-C" "No analytic rule or hunting query YAML files present — Module C checks not triggered"
+} else {
+    $moduleCFilesChecked = 0
+
+    foreach ($f in $allYamlFiles) {
+        $rel     = $f.FullName.Replace($RepoRoot, '').TrimStart('\','/')
+        $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+
+        # ── Step 1: Extract the KQL query block ──────────────────────────────
+        $rawQueryBlock = Get-YamlQueryBlock $content
+
+        # ── Step 2: Strip KQL comment lines ──────────────────────────────────
+        $qLines = $rawQueryBlock -split "`r?`n" | Where-Object { $_ -notmatch '^\s*//' }
+
+        # ── Step 3: Strip _GetWatchlist materialize blocks ───────────────────
+        # Accumulate from 'let X = materialize(' through ');'; if the accumulated block
+        # contains _GetWatchlist, discard it (watchlist context, not table column context).
+        $filteredLines = [System.Collections.Generic.List[string]]::new()
+        $accumBlock    = [System.Collections.Generic.List[string]]::new()
+        $inAccum       = $false
+        foreach ($ql in $qLines) {
+            if (-not $inAccum -and $ql -match '\blet\s+\w+\s*=\s*materialize\s*\(') {
+                $inAccum = $true
+                $accumBlock.Clear()
+                $accumBlock.Add($ql)
+            } elseif ($inAccum) {
+                $accumBlock.Add($ql)
+                if ($ql -match '^\s*\)\s*;') {
+                    $inAccum = $false
+                    $blockText = $accumBlock -join "`n"
+                    if ($blockText -match '\b_GetWatchlist\b') {
+                        $filteredLines.Add('// [watchlist-let-stripped]')
+                    } else {
+                        foreach ($bl in $accumBlock) { $filteredLines.Add($bl) }
+                    }
+                    $accumBlock.Clear()
+                }
+            } else {
+                $filteredLines.Add($ql)
+            }
+        }
+        # Flush any unclosed accumulation as-is
+        foreach ($bl in $accumBlock) { $filteredLines.Add($bl) }
+
+        # ── Step 4: Strip remaining _GetWatchlist("...") quoted arguments ────
+        $kqlForScan = ($filteredLines -join "`n") -replace '_GetWatchlist\s*\(\s*"[^"]*"\s*\)', '_GetWatchlist("")'
+
+        # ── Step 5: Gate — only activate Module C checks when CopilotActivity is present ──
+        if ($kqlForScan -notmatch '\bCopilotActivity\b') { continue }
+
+        $moduleCFilesChecked++
+
+        # ── E6a: Forbidden column names ──────────────────────────────────────
+        foreach ($col in $copilotForbiddenColumns) {
+            if ($kqlForScan -match "\b$([regex]::Escape($col))\b") {
+                Fail "MODULE-C" "$rel — unverified CopilotActivity column '$col' in KQL query block; use only Trinity-verified columns or obtain a new schema verification"
+            }
+        }
+
+        # ── E6b: LLMEventData dynamic field / index access ───────────────────
+        if ($kqlForScan -match '\bLLMEventData\s*[\.\[]') {
+            Fail "MODULE-C" "$rel — unverified CopilotActivity dynamic column 'LLMEventData' access in KQL query block; column is not schema-verified"
+        }
+
+        # ── E6c: Custom parser reference ─────────────────────────────────────
+        if ($kqlForScan -match '\bAIGS_CopilotActivity_Normalized\b') {
+            Fail "MODULE-C" "$rel — references custom parser 'AIGS_CopilotActivity_Normalized' in KQL query block; Module C rules must query CopilotActivity directly (no custom parser per x3nc0n directive 2026-07-23)"
+        }
+
+        # ── Connector ID check ────────────────────────────────────────────────
+        # requiredDataConnectors.connectorId may be omitted; if present, must be 'MicrosoftCopilot'.
+        $connectorMatches = [regex]::Matches($content, '(?m)^\s*-?\s*connectorId\s*:\s*(\S+)')
+        $connectorFound = $false
+        foreach ($cm in $connectorMatches) {
+            $connId = $cm.Groups[1].Value.Trim("'`"")
+            $connectorFound = $true
+            if ($connId -cne 'MicrosoftCopilot') {
+                Fail "MODULE-C" "$rel — CopilotActivity rule declares connectorId '$connId'; required value is 'MicrosoftCopilot' (verified connector ID)"
+            } else {
+                Pass "MODULE-C" "$rel — connectorId 'MicrosoftCopilot' is correct"
+            }
+        }
+        if (-not $connectorFound) {
+            Pass "MODULE-C" "$rel — no connectorId declared (permitted; connector prerequisite may be documented in PREREQUISITES.md)"
+        }
+    }
+
+    if ($moduleCFilesChecked -eq 0) {
+        Pass "MODULE-C" "No CopilotActivity references in query blocks — Module C forbidden-column and connector checks not triggered"
     }
 }
 

@@ -9,25 +9,22 @@ Version numbers follow the V3 ARM contentPackages convention: `Version` in the s
 
 ---
 
-## [Unreleased]
+## [3.0.5-preview.1] — 2026-07-23
 
 ### Added
-- Module B Agent 365 Preview vertical slice: AIGS-PA001, AIGS-CD002, AIGS-Hunt-AgentConfigurationDrift, and AIGS_ApprovedAgents.
-- Agent 365 inventory query and active Module B coverage in the workbook.
-- Workbook validator gates for unsupported KQL Unicode escape literals and invalid wildcard tile mappings.
+- Module C M365 Copilot Preview vertical slice: AIGS-CD003 (model drift), AIGS-Hunt-CopilotAgentModelInventory, and AIGS_M365CopilotBaseline watchlist.
+- Workbook Module C tiles: agent/model inventory and model drift visibility (isfuzzy-guarded, missing-table safe).
+- PREREQUISITES Module C rewrite: observed-state model binding drift detection, direct-KQL non-ASIM, GA connector, no lifecycle operation detections this pass.
 
 ### Changed
-- Module B uses the documented `AgentsInfo` snapshot schema and `Timestamp` field.
-- AIGS-PA001 assesses missing declared guardrails, not external Purview DLP enforcement.
-- The undocumented external-identity scenario was replaced with a version/platform baseline-drift hunt.
-
-### Fixed
-- Executive KPI tiles now return one row per tile with explicit `Metric` and `Value` columns.
-- Module coverage, health, and freshness queries no longer contain unsupported KQL Unicode escapes.
+- Module Inventory datatable updated: Module C BatchStatus, ASIM label, ControlIDs, and WatchlistDependency reflect new content.
+- Module Health ASIM table: CopilotActivity row updated from custom-normalization to N/A direct-KQL.
+- AIGS-PA002-ContentFilterMissingModel roadmap entry reassigned from module C to module A (GUID and path preserved; not built this pass).
+- Connector guide updated: Module C no longer lists Microsoft Defender XDR as required connector.
 
 ---
 
-## [3.0.1-preview.1] — 2026-07-17
+## [3.0.3-preview.1] — 2026-07-22
 
 ### Fixed — Formal Review Corrections (Morpheus — Lead Architect, 2026-07-17)
 
@@ -75,5 +72,6 @@ Version numbers follow the V3 ARM contentPackages convention: `Version` in the s
 | `Fixed` | Bug fixes |
 | `Security` | Security-related changes |
 
-[Unreleased]: ../../compare/v3.0.1-preview.1...HEAD
+[Unreleased]: ../../compare/v3.0.5-preview.1...HEAD
+[3.0.5-preview.1]: ../../releases/tag/v3.0.5-preview.1
 [3.0.1-preview.1]: ../../releases/tag/v3.0.1-preview.1
