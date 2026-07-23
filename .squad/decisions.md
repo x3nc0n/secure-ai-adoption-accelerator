@@ -1,8 +1,8 @@
 # Squad Decisions
 
-**Updated:** 2026-07-16T18:15:10.970-07:00  
+**Updated:** 2026-07-23T15:50:43.305-05:00  
 **Status:** Discovery decisions consolidated, implementation planning ready  
-**Merge Summary:** 18 interactive decisions + 20 architecture defaults (Morpheus, with Switch correction applied) + 7 gated/irreversible decisions = 45 approved decisions in active scope
+**Merge Summary:** 18 interactive + 20 architecture defaults + 7 gated + 28 post-implementation orchestration logs
 
 ## Active Decisions
 
@@ -392,6 +392,91 @@ These decisions were reached during the discovery phase and are now superseded b
 - **Versioning:** Updated at each major decision consolidation; timestamps and authors recorded for each entry
 - **Archive:** Discovery-phase decisions preserved for reference; implementation defaults guide all content development
 
-**Last Updated:** 2026-07-16T18:15:10.970-07:00  
+**Last Updated:** 2026-07-23T15:50:43.305-05:00
 **Consolidation:** Morpheus autonomous resolution approved by Switch with one correction applied  
-**Decision Count:** 45 active (18 interactive + 20 architecture defaults + 7 gated); 6 archived (discovery phase)
+**Decision Count:** 45 active + 28 orchestration records = 73 working decisions + 6 archived (discovery phase)
+
+---
+
+## Post-Implementation Orchestration Logs
+
+**Status:** Cycle 1 complete; Module C vertical slice and Cycle 1 validation approved; package 3.0.5 deployed to reference environment
+
+### Morpheus — Design Review Ceremony (2026-07-17T08:37:00.000-07:00)
+
+**Ceremony:** Pre-Implementation Design Review  
+**Decision:** Azure OpenAI / Microsoft Foundry module is the reference implementation. All 7 modules ship at Preview maturity in v1.0.0-preview.1.
+
+**Outcome:**
+- ✅ Documented source artifact manifest (20+ resources approved)
+- ✅ Established vertical slice architecture: reference module first, 6 platform modules parallel
+- ✅ Approved modular graduation criteria: telemetry, coverage health, 1+ analytic rule, 1+ hunting query, workbook tile, response guidance
+- ✅ Confirmed deployment model: ARM parameterized for multitenant rollout, UAMI-based with Security Copilot OAuth exception
+- ✅ Approved schedule: Module C (Microsoft 365 Copilot) as Cycle 1 delivery
+
+### Morpheus — Module C Architecture Gate (2026-07-17T08:45:00.000-07:00)
+
+**Controlling contract:** CopilotActivity table behavior, observed-state baseline model, drift detection rule, inventory hunting query, workbook tiles
+
+**Outcome:**
+- ✅ Validated CopilotActivity telemetry contract: agent name, model, action, result status, cost consumed
+- ✅ Documented baseline architecture: Watchlist-driven observed state, point-in-time inventory, drift detection
+- ✅ Approved: AIGS-CD003 (model drift detection), AIGS-Hunt-CopilotAgentModelInventory, AIGS_M365CopilotBaseline Watchlist
+- ✅ Deferred PA002 (performance/cost anomalies) to Module A roadmap pending telemetry feasibility
+
+### Trinity — Authoritative Telemetry Verification (2026-07-17T09:16:43.000-07:00)
+
+**Scope:** Provide verified table and connector contracts for all 7 modules before KQL authoring
+
+**Outcome:**
+- ✅ CopilotActivity: AzureActivity (ARM), not AzureDiagnostics; supports M365 Copilot agent tracking
+- ✅ AgentsInfo: Defender XDR advanced hunting table; available for Agent 365 inventory
+- ✅ CloudAppEvents: Available; supports Office 365 activity tracking (requires CloudAppEvents connector)
+- ✅ AzureOpenAI RAI policies: AzureActivity (ARM events only); no telemetry for runtime policy enforcement
+- ✅ Reference workbook published; workbook GA wording finalized
+- ✅ Documentation of ASIM parser alignment for all modules
+
+### Switch — Corrected Implementation Contract & Validation (2026-07-17T10:22:00.000-07:00)
+
+**Cycle 1 Review:** Validation plan, validator gates E1/E3/E4/E6, connector guard, package deployment, workbook query execution
+
+**Outcome:**
+- ✅ 112 source passes (content review, KQL correctness, connector prerequisites)
+- ✅ 10/10 regression test pass rate (existing Sentinel deployments unaffected)
+- ✅ ARM what-if clean; parameter validation complete
+- ✅ Connector ID verified: Office365 (id: 511c00b9-7631-4eda-a848-2b7ed14b4755)
+- ✅ Package 3.0.5 deployed to reference workspace; 19/19 workbook queries execute successfully
+- ✅ Cycle 1 APPROVE; proceeding to Cycle 2 edge-case validation
+
+### Neo — Module C Implementation (2026-07-23T11:17:26-05:00)
+
+**Deliverables built and shipped in package 3.0.5:**
+
+**Outcome:**
+- ✅ Analytic rule: AIGS-CD003-CopilotAgentModelDrift (GUID: 72eb1408-feda-5533-a0fc-6d622e938011)
+- ✅ Hunting query: AIGS-Hunt-CopilotAgentModelInventory (GUID: d6ddbee1-0c89-5d14-9902-501192433570)
+- ✅ Watchlist: AIGS_M365CopilotBaseline (GUID: 855b82c3-e9fe-416a-ad0f-41db79f6433b)
+- ✅ Workbook updated with Module C tiles (AIGovernanceSolution.json)
+- ✅ Solution manifest v3.0.5 with 17 resources
+- ✅ GUID registry and Prerequisites.md updated
+- ✅ CHANGELOG.md and ReleaseNotes.md finalized
+- **⚠️ Outcome:** Original author access locked after documentation rejection; Neo artifacts remain in package with technical approval
+
+### Tank — Release Label Fix (2026-07-22T19:43:00.000-07:00)
+
+**Cycle 1 Revision D1 for release labels:**
+
+**Outcome:**
+- ✅ Fixed 3.0.5-preview.1 documentation (CHANGELOG.md, README.md)
+- ✅ Release label versioning: 3.0.5-preview.1 → 3.0.5 (GA path verified)
+- ✅ Playbook infrastructure reference updated
+- ✅ Cycle 1 APPROVED; revision accepted
+
+---
+
+## Merge Summary Update
+
+**Total Decisions:** 45 active + 28 post-implementation orchestration records = 73 working decisions  
+**Inbox Consolidated:** 47 files (19 duplicates + 28 orchestration logs) merged and archived  
+**Workflow Status:** Module C Cycle 1 complete; Cycle 2 validation planning; modules A/B/D/E/F/G queued for parallel execution
+
