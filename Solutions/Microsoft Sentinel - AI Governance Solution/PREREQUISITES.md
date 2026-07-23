@@ -141,7 +141,7 @@ AIGS-Enrich-001-SecurityCopilot (Module G optional enrichment playbook) uses **d
 
 ## Module B — Agent 365
 
-**Status:** 🔵 Designed
+**Status:** ✅ Preview implementation
 **Modules deployed by default:** Enabled when `enablePreviewModules = true` (requires connector)
 
 ### Data Source
@@ -165,20 +165,29 @@ AIGS-Enrich-001-SecurityCopilot (Module G optional enrichment playbook) uses **d
 
 | Watchlist | Purpose | Key Column |
 |-----------|---------|-----------|
-| `AIGS_ApprovedAgents` | Required guardrail names and permission scope bounds per agent | `ItemKey` = agent ID or classification |
+| `AIGS_ApprovedAgents` | Approved AgentId, expected Platform and Version, and guardrail classification context | `ItemKey` (detection join uses `AgentId`) |
 
 ### Analytic Rules
 
 | Rule ID | Name | Table | Severity | Confidence |
 |---------|------|-------|----------|-----------|
-| `AIGS-PA001` | AI Agent Missing Required DLP Guardrail | `AgentsInfo` | High | High (deterministic snapshot comparison) |
-| `AIGS-CD002` | Agent Configuration Drift Detected | `AgentsInfo` | High | High (deterministic baseline comparison) |
+| `AIGS-PA001` | Active Published Agent Missing Declared Guardrails | `AgentsInfo` | High | High (empty documented field + fail-closed baseline) |
+| `AIGS-CD002` | Agent Version or Platform Drift | `AgentsInfo` | Medium | High (deterministic baseline mismatch) |
+
+### Hunting Query
+
+`AIGS-Hunt-AgentConfigurationDrift` surfaces active agents absent from the approved baseline and
+agents whose documented `Version` or `Platform` differs. If the Watchlist has no Active rows, the
+hunt returns active inventory for baseline seeding; it does not claim compliance.
 
 ### Known Limitations
 
 - `AgentsInfo` is a Preview table; schema may change between Defender XDR releases.
 - Snapshot semantics mean there is inherent latency between an agent configuration change and detection. Near-real-time detection is not supported for this module.
-- Connector must be added to the workspace before any KQL can be end-to-end validated.
+- `Guardrails` is documented as dynamic, but its internal object schema is not published. AIGS-PA001 only evaluates empty, null, `[]`, and `{}` values and does not inspect undocumented subfields.
+- `Guardrails` does not prove whether an external Microsoft Purview DLP policy is applied or enforced. Purview enforcement belongs to Module F.
+- `AgentsInfo` is not listed among the Defender XDR connector's selectable streaming tables. Unified Microsoft Defender portal access is the recommended execution path until standalone Sentinel availability is explicitly documented.
+- The current schema has no stable creator UPN or external-tenant field, so the planned "agents registered by external identity" hunt was rejected rather than implemented with invented fields.
 
 ---
 

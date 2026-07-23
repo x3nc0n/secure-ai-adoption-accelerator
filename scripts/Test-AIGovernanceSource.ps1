@@ -113,6 +113,17 @@ function Write-CheckHeader {
     Write-Host "CHECK $($script:ChecksRun): $Name" -ForegroundColor Cyan
 }
 
+function Get-WorkbookItems {
+    param([object[]]$Items)
+
+    foreach ($item in @($Items)) {
+        $item
+        if ($item.content -and $item.content.items) {
+            Get-WorkbookItems -Items $item.content.items
+        }
+    }
+}
+
 # ── Duration parser for Sentinel YAML queryFrequency / queryPeriod ─────────────
 # Returns duration in minutes; $null if the string cannot be parsed.
 # Accepts Sentinel simplified format (1h, 6h, 1d, 7d, 30m) and ISO 8601 (PT1H, P1D, P7D).
@@ -938,6 +949,44 @@ if (-not (Test-Path $contentManifestPath)) {
                             Fail "MANIFEST" "Workbooks\WorkbooksMetadata.json — '$workbookFileName' entry has empty required field(s): $($missingWorkbookMetadata -join ', ')"
                         } else {
                             Pass "MANIFEST" "Workbooks\WorkbooksMetadata.json — '$workbookFileName' identity/version metadata is complete"
+                        }
+
+                        $workbookFullPath = Join-Path $SolutionRoot $workbookPath
+                        if (Test-Path $workbookFullPath) {
+                            try {
+                                $workbook = Get-Content $workbookFullPath -Raw | ConvertFrom-Json -ErrorAction Stop
+                                $queryItems = @(Get-WorkbookItems -Items $workbook.items | Where-Object {
+                                    $_.type -eq 3 -and $_.content.query
+                                })
+
+                                $escapedUnicodeQueries = @($queryItems | Where-Object {
+                                    $_.content.query -match '\\(?:U[0-9A-Fa-f]{8}|u[0-9A-Fa-f]{4})'
+                                })
+                                if ($escapedUnicodeQueries.Count -gt 0) {
+                                    Fail "WORKBOOK" "'$workbookFileName' contains KQL Unicode escape literals in item(s): $($escapedUnicodeQueries.name -join ', ')"
+                                } else {
+                                    Pass "WORKBOOK" "'$workbookFileName' KQL contains no unsupported Unicode escape literals"
+                                }
+
+                                $invalidTileItems = @($queryItems | Where-Object {
+                                    if ($_.content.visualization -ne 'tiles') {
+                                        return $false
+                                    }
+                                    $titleColumn = [string]$_.content.tileSettings.titleContent.columnMatch
+                                    $valueColumn = [string]$_.content.tileSettings.leftContent.columnMatch
+                                    [string]::IsNullOrWhiteSpace($titleColumn) -or
+                                        [string]::IsNullOrWhiteSpace($valueColumn) -or
+                                        $titleColumn.Contains('*') -or
+                                        $valueColumn.Contains('*')
+                                })
+                                if ($invalidTileItems.Count -gt 0) {
+                                    Fail "WORKBOOK" "'$workbookFileName' tile item(s) require exact title and value column matches: $($invalidTileItems.name -join ', ')"
+                                } else {
+                                    Pass "WORKBOOK" "'$workbookFileName' tile items use exact title and value column matches"
+                                }
+                            } catch {
+                                Fail "WORKBOOK" "'$workbookFileName' — JSON parse or quality validation error: $($_.Exception.Message)"
+                            }
                         }
                     }
                 } catch {

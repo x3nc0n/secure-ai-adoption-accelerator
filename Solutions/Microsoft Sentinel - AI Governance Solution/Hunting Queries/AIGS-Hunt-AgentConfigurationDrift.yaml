@@ -1,0 +1,100 @@
+id: 62fcd70f-1fec-43c4-aa39-91f0740c5883
+name: "AIGS - Hunt - Agent Inventory and Configuration Drift"
+description: |
+  Compares each active agent's latest AgentsInfo snapshot with AIGS_ApprovedAgents. It surfaces
+  agents absent from the baseline, version mismatches, and platform mismatches. When the watchlist
+  has no Active rows, all active agents are returned to support initial baseline seeding.
+
+  AgentsInfo is an hourly snapshot table, so the query uses arg_max(Timestamp, *) by AgentId.
+  Version is a provider-defined string; mismatches are investigation leads, not compliance verdicts.
+  The internal structures of Owners and Guardrails are not assumed.
+
+  ASIM: N/A - AgentsInfo is Defender XDR inventory data and has no applicable ASIM schema.
+
+  Module:   B - Agent 365 [Preview]
+  Controls: AIGS-PA001, AIGS-CD002
+  Domain:   Posture Assessment and Configuration Drift
+  Lookback: 14 days
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
+      - AgentsInfo
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+tags:
+  - Module-B
+  - Agent365
+  - AgentsInfo
+  - ConfigurationDrift
+query: |
+  // ASIM: N/A - AgentsInfo inventory has no applicable ASIM schema
+  // Controls: AIGS-PA001, AIGS-CD002
+  // Snapshot semantics: arg_max selects the latest inventory row per AgentId.
+  // Graceful degradation: no Active watchlist rows surfaces all active agents for baseline seeding.
+  let LookbackPeriod = 14d;
+  let ApprovedAgents = materialize(
+      _GetWatchlist("AIGS_ApprovedAgents")
+      | where Status =~ "Active"
+      | project
+          WL_AgentId = tolower(tostring(AgentId)),
+          WL_AgentName = tostring(AgentName),
+          WL_BaselineVersion = tostring(BaselineVersion),
+          WL_ExpectedPlatform = tostring(Platform),
+          WL_RequiredGuardrailType = tostring(RequiredGuardrailType),
+          WL_BaselineOwner = tostring(BaselineOwner)
+  );
+  let WatchlistDeployed = toscalar(
+      ApprovedAgents
+      | summarize Count = count()
+      | project Count > 0
+  );
+  AgentsInfo
+  | where Timestamp >= ago(LookbackPeriod)
+  | summarize arg_max(Timestamp, *) by AgentId
+  | where LifecycleStatus =~ "Active"
+  | extend NormalizedAgentId = tolower(tostring(AgentId))
+  | join kind=leftouter (ApprovedAgents)
+      on $left.NormalizedAgentId == $right.WL_AgentId
+  | extend
+      InBaseline = isnotempty(WL_AgentId),
+      VersionDrift = isnotempty(WL_BaselineVersion)
+          and tolower(Version) != tolower(WL_BaselineVersion),
+      PlatformDrift = isnotempty(WL_ExpectedPlatform)
+          and tolower(Platform) != tolower(WL_ExpectedPlatform)
+  | extend DriftStatus = case(
+      not(WatchlistDeployed),
+          "INFO - Watchlist has no Active rows; seed the baseline from this inventory",
+      not(InBaseline),
+          "FLAG - Active agent is not in the approved baseline",
+      VersionDrift and PlatformDrift,
+          "FLAG - Version and platform differ from the approved baseline",
+      VersionDrift,
+          "FLAG - Version differs from the approved baseline",
+      PlatformDrift,
+          "FLAG - Platform differs from the approved baseline",
+      "IN-BASELINE - No version or platform drift detected"
+  )
+  | where not(WatchlistDeployed) or not(InBaseline) or VersionDrift or PlatformDrift
+  | project
+      Timestamp,
+      DriftStatus,
+      AgentId,
+      AgentName,
+      Platform,
+      Version,
+      WL_BaselineVersion,
+      WL_ExpectedPlatform,
+      LifecycleStatus,
+      PublishedStatus,
+      Guardrails,
+      Permissions,
+      Owners,
+      EntraAgentId,
+      SourceAgentId,
+      CreatedDateTime,
+      LastUpdatedDateTime,
+      WL_RequiredGuardrailType,
+      WL_BaselineOwner
+  | order by Timestamp desc

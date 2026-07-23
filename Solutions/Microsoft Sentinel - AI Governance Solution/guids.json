@@ -42,6 +42,15 @@
       "status": "resolved",
       "metadataFile": "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.json",
       "dataFile": "Watchlists/AIGS_ApprovedModels/AIGS_ApprovedModels.csv"
+    },
+    "AIGS_ApprovedAgents": {
+      "guid": "c99b8139-d6ef-4e99-8754-c795539af984",
+      "displayName": "AIGS - Approved AI Agents",
+      "searchKey": "ItemKey",
+      "owner": "tank (metadata) / neo (csv data)",
+      "status": "resolved",
+      "metadataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json",
+      "dataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.csv"
     }
   },
   "analyticRules": {
@@ -60,6 +69,22 @@
       "owner": "neo",
       "status": "resolved",
       "file": "Analytic Rules/AIGS-CD005-AIResourceDiagnosticsChanged.yaml"
+    },
+    "AIGS-PA001-AgentMissingDeclaredGuardrails": {
+      "guid": "a90c2bb8-b310-44d7-90e0-82409c80d604",
+      "displayName": "[AIGS] Posture - Active Published Agent Missing Declared Guardrails",
+      "module": "B",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-PA001-AgentMissingDeclaredGuardrails.yaml"
+    },
+    "AIGS-CD002-AgentConfigDrift": {
+      "guid": "cf4b5093-14b1-4b7f-a3c5-d139eebeefb7",
+      "displayName": "[AIGS] Config Drift - Agent Version or Platform Drift",
+      "module": "B",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml"
     }
   },
   "huntingQueries": {
@@ -78,6 +103,14 @@
       "owner": "neo",
       "status": "resolved",
       "file": "Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml"
+    },
+    "AIGS-Hunt-AgentConfigurationDrift": {
+      "guid": "62fcd70f-1fec-43c4-aa39-91f0740c5883",
+      "displayName": "AIGS - Hunt - Agent Inventory and Configuration Drift",
+      "module": "B",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Hunting Queries/AIGS-Hunt-AgentConfigurationDrift.yaml"
     }
   },
   "workbooks": {
@@ -92,15 +125,6 @@
   "_roadmap": {
     "_comment": "Non-deployable roadmap — items here are planned for future implementation batches. Do not reference in Solution_AIGovernance.json until files exist and status is resolved.",
     "watchlists": {
-      "AIGS_ApprovedAgents": {
-        "guid": "c99b8139-d6ef-4e99-8754-c795539af984",
-        "displayName": "AIGS - Approved AI Agents",
-        "searchKey": "AgentId",
-        "owner": "tank (metadata) / neo (csv data)",
-        "status": "unresolved — pending future batch",
-        "metadataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.json",
-        "dataFile": "Watchlists/AIGS_ApprovedAgents/AIGS_ApprovedAgents.csv"
-      },
       "AIGS_ApprovedCopilotPlugins": {
         "guid": "a660affe-8b13-47c1-864e-85d3852169f6",
         "displayName": "AIGS - Approved Copilot Plugins",
@@ -139,22 +163,6 @@
       }
     },
     "analyticRules": {
-      "AIGS-PA001-AgentMissingDLPGuardrail": {
-        "guid": "a90c2bb8-b310-44d7-90e0-82409c80d604",
-        "displayName": "[AIGS] Posture - Agent Missing Required DLP Guardrail",
-        "module": "B",
-        "owner": "neo",
-        "status": "unresolved — KQL authoring pending neo",
-        "file": "Analytic Rules/AIGS-PA001-AgentMissingDLPGuardrail.yaml"
-      },
-      "AIGS-CD002-AgentConfigDrift": {
-        "guid": "cf4b5093-14b1-4b7f-a3c5-d139eebeefb7",
-        "displayName": "[AIGS] Config Drift - Agent Configuration Drift Detected",
-        "module": "B",
-        "owner": "neo",
-        "status": "unresolved — KQL authoring pending neo",
-        "file": "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml"
-      },
       "AIGS-AM001-UnauthorizedModelDeployment": {
         "guid": "752bbac1-66ff-4bba-93f7-46a57bbd793d",
         "displayName": "[AIGS] Audit Monitor - Unauthorized AI Model Deployment",
@@ -197,14 +205,6 @@
       }
     },
     "huntingQueries": {
-      "AIGS-Hunt-AgentsRegisteredByExternalIdentity": {
-        "guid": "62fcd70f-1fec-43c4-aa39-91f0740c5883",
-        "displayName": "AIGS - Hunt - Agents Registered by External Identity",
-        "module": "B",
-        "owner": "neo",
-        "status": "unresolved — KQL authoring pending neo",
-        "file": "Hunting Queries/AIGS-Hunt-AgentsRegisteredByExternalIdentity.yaml"
-      },
       "AIGS-Hunt-UnauthorizedPluginAccess": {
         "guid": "8529f81b-37ab-4bb3-b9b4-5889ff597669",
         "displayName": "AIGS - Hunt - Unauthorized Copilot Plugin Access",

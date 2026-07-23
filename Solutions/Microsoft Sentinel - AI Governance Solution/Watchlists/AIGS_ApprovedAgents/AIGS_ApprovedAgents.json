@@ -1,0 +1,29 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the Log Analytics workspace hosting Microsoft Sentinel."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/Watchlists",
+      "apiVersion": "2023-11-01",
+      "name": "[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/AIGS_ApprovedAgents')]",
+      "properties": {
+        "displayName": "AIGS - Approved AI Agents",
+        "provider": "x3nc0n",
+        "description": "Approved Agent 365 inventory baseline used by Module B posture and configuration-drift content. AgentId is the detection join key. BaselineVersion and Platform are optional per-property comparison values. RequiredGuardrailType is analyst context only because the internal AgentsInfo Guardrails schema is not documented. Replace the shipped Status=Template row with reviewed entries and set Status=Active to enable fail-closed analytics.",
+        "source": "Local file",
+        "itemsSearchKey": "ItemKey",
+        "contentType": "text/csv",
+        "numberOfLinesToSkip": 0,
+        "rawContent": "ItemKey,AgentId,AgentName,Platform,BaselineVersion,RequiredGuardrailType,Status,BaselineOwner,LastReviewed,Notes\nAGENT-TEMPLATE-001,00000000-0000-0000-0000-000000000001,Example Agent,Example Platform,1.0,Organization-defined,Template,security@example.com,2026-07-22,Replace this template row and set Status to Active"
+      }
+    }
+  ]
+}

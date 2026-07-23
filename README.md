@@ -1,6 +1,6 @@
 # Microsoft Sentinel — AI Governance Solution
 
-> **Community Solution** · **v3.0.1-preview.1** · Reference Batch (Module A)
+> **Community Solution** · **v3.0.3-preview.1** · Module B Preview Batch
 > Supported via [GitHub Issues](../../issues) · Published by [x3nc0n](https://github.com/x3nc0n)
 
 ---
@@ -13,18 +13,20 @@ This solution follows all Microsoft Sentinel content and packaging conventions a
 
 ---
 
-## Current Status — Reference Batch (v3.0.1-preview.1)
+## Current Status — Module B Preview Batch (v3.0.3-preview.1)
 
 | Aspect | Status |
 |--------|--------|
-| Module A — Azure OpenAI / Foundry | ✅ Reference implementation in progress |
-| Modules B–G | 🔵 Designed and contracted; scaffolding not yet complete |
-| Solution package (`Package/`) | 🔵 Generated on CI; not hand-authored |
+| Module A — Azure OpenAI / Foundry | ✅ Reference implementation |
+| Module B — Agent 365 | ✅ Preview vertical slice: 2 rules, 1 hunt, 1 Watchlist, workbook coverage |
+| Modules C–G | 🔵 Designed and contracted; scaffolding not yet complete |
+| Solution package (`Package/`) | ✅ Generated with official V3 tooling; not hand-authored |
 | Deploy to Azure button | ⏳ Pending package generation and remote URL |
 | Validation workspace testing | 🔵 Gate 1b in progress (validation workspace: West US 2) |
 | Content Hub / Marketplace publication | ⏸️ Blocked — gated for human approval |
 
-**This release contains the reference implementation batch only.** Module A (Azure OpenAI / Foundry) is the first module implemented under the binding implementation contract. Modules B–G are designed and contractually specified but are not yet in a deployable state. Documentation describing all seven modules is included to reflect the full solution roadmap and help customers understand prerequisites before deploying.
+This release contains deployable vertical slices for Module A (Azure OpenAI / Foundry) and
+Module B (Agent 365 Preview). Modules C–G remain designed but are not yet deployable.
 
 ---
 
@@ -35,7 +37,7 @@ When fully deployed, this solution enables security teams to:
 | Outcome | Governance Domain | Key Signals |
 |---------|------------------|------------|
 | Detect when AI content filter policies are removed or weakened | Configuration Drift | ARM events in `AzureActivity` (`raiPolicies/write`) |
-| Detect AI agents operating without required DLP guardrails | Posture Assessment | `AgentsInfo` snapshot baseline comparison |
+| Detect approved active agents with no declared guardrails | Posture Assessment | `AgentsInfo` snapshot baseline comparison |
 | Alert on unauthorized Copilot plugins added outside approved list | Configuration Drift | `CopilotActivity` plugin lifecycle events |
 | Surface shadow AI applications and app governance violations | Posture Assessment | `CloudAppEvents` behavioral heuristics |
 | Detect unauthorized AI model deployments | Audit Monitoring | `AzureActivity` (`deployments/write`) |
@@ -53,7 +55,7 @@ All findings reference their governance control ID (`AIGS-<Domain><NNN>`), basel
 | Module | Domain | Primary Table | Connector | ASIM | Status |
 |--------|--------|--------------|-----------|------|--------|
 | **A — Azure OpenAI / Foundry** | Config Drift, Audit | `AzureActivity` | Built-in (no connector required) | ✅ Native `imAuditEvent` | ✅ Reference implementation |
-| **B — Agent 365** | Posture Assessment, Config Drift | `AgentsInfo` ⚠️ Preview | Microsoft Defender XDR | N/A (inventory table) | 🔵 Designed |
+| **B — Agent 365** | Posture Assessment, Config Drift | `AgentsInfo` ⚠️ Preview | Microsoft Defender XDR | N/A (inventory table) | ✅ Preview implementation |
 | **C — M365 Copilot** | Config Drift | `CopilotActivity` ⚠️ Preview | Microsoft Copilot Data Connector ⚠️ Preview | Custom parser `AIGS_CopilotActivity_Normalized` | 🔵 Designed |
 | **D — Defender XDR** | Posture Assessment | `CloudAppEvents` | Microsoft Defender XDR + Defender for Cloud Apps | N/A | 🔵 Designed |
 | **E — Azure General** | Audit Monitoring | `AzureActivity` | Built-in | ✅ Native `imAuditEvent` | 🔵 Designed |
@@ -63,7 +65,7 @@ All findings reference their governance control ID (`AIGS-<Domain><NNN>`), basel
 ### Notes
 
 - **Module G is disabled by default** (`enableSecurityCopilotModule = false`). It requires a separately gated delegated-OAuth exception, Security Copilot SCU provisioning, and explicit administrator opt-in. Core solution functionality (Modules A–F) operates entirely via User-Assigned Managed Identity (UAMI) and does not depend on Module G.
-- **Preview dependencies** (marked ⚠️): `AgentsInfo` and `CopilotActivity` are in public preview. Schema may change. See connector-specific prerequisites in [PREREQUISITES.md](Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/PREREQUISITES.md).
+- **Preview dependencies** (marked ⚠️): `AgentsInfo` and `CopilotActivity` are in public preview. Schema may change. `AgentsInfo` availability through standalone Sentinel streaming is not explicitly documented; unified Microsoft Defender portal access is recommended. See [PREREQUISITES.md](Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/PREREQUISITES.md).
 - **Module A and E** are the only modules whose primary table (`AzureActivity`) is available in all Microsoft Sentinel workspaces without additional connector configuration.
 
 ---
@@ -87,7 +89,7 @@ This solution promotes ASIM usage where official schemas exist:
 
 ## Solution Contents
 
-When fully scaffolded, this solution includes:
+The full roadmap includes:
 
 | Category | Contents |
 |----------|---------|

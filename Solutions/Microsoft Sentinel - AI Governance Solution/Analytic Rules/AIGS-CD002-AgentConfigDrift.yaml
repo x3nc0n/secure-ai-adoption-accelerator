@@ -1,0 +1,123 @@
+id: cf4b5093-14b1-4b7f-a3c5-d139eebeefb7
+name: "[AIGS] Config Drift - Agent Version or Platform Drift"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Compares the latest active Agent 365 inventory snapshot with the approved version and platform
+  recorded in AIGS_ApprovedAgents. A result is produced when a populated baseline value differs
+  from the current documented AgentsInfo Version or Platform field.
+
+  FAIL-CLOSED: Only Status=Active watchlist entries participate through an inner join. An absent,
+  empty, or template-only watchlist produces zero results. Blank BaselineVersion or Platform values
+  disable comparison for that individual property.
+
+  Version is a provider-defined string with no documented semantic-version format. This rule reports
+  a deterministic baseline mismatch, not whether the new version is malicious or vulnerable.
+  AgentsInfo is an hourly snapshot table; arg_max(Timestamp, *) selects current state per AgentId.
+
+  ASIM: N/A - AgentsInfo is Defender XDR inventory data and has no applicable ASIM schema.
+
+  Module:   B - Agent 365 [Preview]
+  Control:  AIGS-CD002
+  Domain:   Configuration Drift (CD)
+  Response: PB-NOTIFY-01 (notify and validate authorization)
+  Baseline: AIGS_ApprovedAgents watchlist (Status=Active; match on AgentId)
+  MCSB:     AM-2 (Use only approved services)
+  NIST AI RMF: GOVERN-1.3, MAP-5.1
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
+      - AgentsInfo
+queryFrequency: 4h
+queryPeriod: 4h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+query: |
+  // ASIM: N/A - AgentsInfo inventory has no applicable ASIM schema
+  // Control: AIGS-CD002
+  // Data contract: AgentsInfo snapshot; latest row per AgentId is authoritative
+  // FAIL-CLOSED: inner join to Active AIGS_ApprovedAgents rows.
+  // Empty baseline properties are intentionally not evaluated.
+  let ApprovedAgents = materialize(
+      _GetWatchlist("AIGS_ApprovedAgents")
+      | where Status =~ "Active"
+      | project
+          WL_AgentId = tolower(tostring(AgentId)),
+          WL_AgentName = tostring(AgentName),
+          WL_BaselineVersion = tostring(BaselineVersion),
+          WL_ExpectedPlatform = tostring(Platform),
+          WL_BaselineOwner = tostring(BaselineOwner)
+  );
+  AgentsInfo
+  | where Timestamp >= ago(4h)
+  | summarize arg_max(Timestamp, *) by AgentId
+  | where LifecycleStatus =~ "Active"
+  | extend NormalizedAgentId = tolower(tostring(AgentId))
+  | join kind=inner (ApprovedAgents)
+      on $left.NormalizedAgentId == $right.WL_AgentId
+  | extend
+      VersionDrift = isnotempty(WL_BaselineVersion)
+          and tolower(Version) != tolower(WL_BaselineVersion),
+      PlatformDrift = isnotempty(WL_ExpectedPlatform)
+          and tolower(Platform) != tolower(WL_ExpectedPlatform)
+  | where VersionDrift or PlatformDrift
+  | extend
+      TimeGenerated = Timestamp,
+      DriftType = case(
+          VersionDrift and PlatformDrift, "Version and platform drift",
+          VersionDrift, "Version drift",
+          "Platform drift"
+      ),
+      DriftFinding = strcat(
+          "Current version/platform: ", Version, "/", Platform,
+          "; approved version/platform: ", WL_BaselineVersion, "/", WL_ExpectedPlatform,
+          ". Validate whether the change was authorized."
+      )
+  | project
+      TimeGenerated,
+      AgentId,
+      AgentName,
+      Platform,
+      Version,
+      EntraAgentId,
+      SourceAgentId,
+      LifecycleStatus,
+      PublishedStatus,
+      LastUpdatedDateTime,
+      WL_AgentName,
+      WL_BaselineVersion,
+      WL_ExpectedPlatform,
+      WL_BaselineOwner,
+      VersionDrift,
+      PlatformDrift,
+      DriftType,
+      DriftFinding
+entityMappings:
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: AppId
+        columnName: EntraAgentId
+      - identifier: Name
+        columnName: AgentName
+customDetails:
+  AgentId: AgentId
+  DriftType: DriftType
+  CurrentVersion: Version
+  BaselineVersion: WL_BaselineVersion
+  CurrentPlatform: Platform
+  ExpectedPlatform: WL_ExpectedPlatform
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-CD002: {{DriftType}} for Agent {{AgentName}}"
+  alertDescriptionFormat: "{{DriftFinding}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

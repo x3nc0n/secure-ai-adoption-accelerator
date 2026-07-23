@@ -11,11 +11,19 @@ Version numbers follow the V3 ARM contentPackages convention: `Version` in the s
 
 ## [Unreleased]
 
-### Planned for Next Release
-- Module A ARM templates: analytic rules (AIGS-CD001, AIGS-AM001), hunting queries, workbook (tab: Module Coverage + Platform Health), playbook Logic App ARM templates
-- Watchlist CSV and JSON metadata files (7 watchlist pairs)
-- Custom parsers: `AIGS_AzureOpenAI_CL`, `AIGS_CopilotActivity_Normalized`
-- Deploy to Azure button (requires package URL from published release)
+### Added
+- Module B Agent 365 Preview vertical slice: AIGS-PA001, AIGS-CD002, AIGS-Hunt-AgentConfigurationDrift, and AIGS_ApprovedAgents.
+- Agent 365 inventory query and active Module B coverage in the workbook.
+- Workbook validator gates for unsupported KQL Unicode escape literals and invalid wildcard tile mappings.
+
+### Changed
+- Module B uses the documented `AgentsInfo` snapshot schema and `Timestamp` field.
+- AIGS-PA001 assesses missing declared guardrails, not external Purview DLP enforcement.
+- The undocumented external-identity scenario was replaced with a version/platform baseline-drift hunt.
+
+### Fixed
+- Executive KPI tiles now return one row per tile with explicit `Metric` and `Value` columns.
+- Module coverage, health, and freshness queries no longer contain unsupported KQL Unicode escapes.
 
 ---
 

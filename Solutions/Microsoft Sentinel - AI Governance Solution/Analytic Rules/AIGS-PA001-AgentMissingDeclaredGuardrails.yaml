@@ -1,0 +1,117 @@
+id: a90c2bb8-b310-44d7-90e0-82409c80d604
+name: "[AIGS] Posture - Active Published Agent Missing Declared Guardrails"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Detects active, published AI agents whose current AgentsInfo snapshot has no declared guardrails,
+  limited to agents explicitly tracked as Active in the AIGS_ApprovedAgents watchlist.
+
+  FAIL-CLOSED: If AIGS_ApprovedAgents contains no Active entries, this rule produces zero results.
+  The shipped template row has Status=Template and cannot generate an alert.
+
+  This rule evaluates the documented AgentsInfo Guardrails field only. It does not determine whether
+  Microsoft Purview DLP policies are applied or enforced; Purview policy enforcement belongs to
+  Module F telemetry. Guardrails has a documented dynamic type, but its internal object schema is
+  not published, so this rule only treats empty, null, [], and {} values as missing.
+
+  AgentsInfo is an hourly snapshot table, not an event stream. The rule uses arg_max(Timestamp, *)
+  by AgentId and runs every four hours.
+
+  ASIM: N/A - AgentsInfo is Defender XDR inventory data and has no applicable ASIM schema.
+
+  Module:   B - Agent 365 [Preview]
+  Control:  AIGS-PA001
+  Domain:   Posture Assessment (PA)
+  Response: PB-NOTIFY-01 (notify and investigate; no automatic remediation)
+  Baseline: AIGS_ApprovedAgents watchlist (Status=Active; match on AgentId)
+  MCSB:     DP-2 (Protect sensitive data)
+  NIST AI RMF: GOVERN-1.1, MANAGE-2.2
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: MicrosoftDefenderAdvancedThreatProtection
+    dataTypes:
+      - AgentsInfo
+queryFrequency: 4h
+queryPeriod: 4h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - DefenseEvasion
+relevantTechniques:
+  - T1562
+query: |
+  // ASIM: N/A - AgentsInfo inventory has no applicable ASIM schema
+  // Control: AIGS-PA001
+  // Data contract: AgentsInfo snapshot; latest row per AgentId is authoritative
+  // Guardrails limitation: internal dynamic schema is undocumented. Only empty values are assessed.
+  // Purview limitation: this is not a DLP policy-enforcement check.
+  // FAIL-CLOSED: inner join to Active AIGS_ApprovedAgents rows.
+  let ApprovedAgents = materialize(
+      _GetWatchlist("AIGS_ApprovedAgents")
+      | where Status =~ "Active"
+      | project
+          WL_AgentId = tolower(tostring(AgentId)),
+          WL_RequiredGuardrailType = tostring(RequiredGuardrailType),
+          WL_BaselineOwner = tostring(BaselineOwner)
+  );
+  AgentsInfo
+  | where Timestamp >= ago(4h)
+  | summarize arg_max(Timestamp, *) by AgentId
+  | where LifecycleStatus =~ "Active"
+  | where PublishedStatus =~ "Published"
+  | extend
+      NormalizedAgentId = tolower(tostring(AgentId)),
+      GuardrailsText = tostring(Guardrails)
+  | where isempty(GuardrailsText) or GuardrailsText in ("null", "[]", "{}")
+  | join kind=inner (ApprovedAgents)
+      on $left.NormalizedAgentId == $right.WL_AgentId
+  | extend
+      TimeGenerated = Timestamp,
+      PostureFinding = "Active published agent has no declared guardrails",
+      ValidationNote = strcat(
+          "Validate agent guardrails in Agent 365 and the source platform. ",
+          "This finding does not assess external Microsoft Purview DLP enforcement. ",
+          "Required baseline classification: ", WL_RequiredGuardrailType, "."
+      )
+  | project
+      TimeGenerated,
+      AgentId,
+      AgentName,
+      Platform,
+      Version,
+      EntraAgentId,
+      SourceAgentId,
+      LifecycleStatus,
+      PublishedStatus,
+      Guardrails,
+      Permissions,
+      Owners,
+      LastUpdatedDateTime,
+      WL_RequiredGuardrailType,
+      WL_BaselineOwner,
+      PostureFinding,
+      ValidationNote
+entityMappings:
+  - entityType: CloudApplication
+    fieldMappings:
+      - identifier: AppId
+        columnName: EntraAgentId
+      - identifier: Name
+        columnName: AgentName
+customDetails:
+  AgentId: AgentId
+  Platform: Platform
+  AgentVersion: Version
+  LifecycleStatus: LifecycleStatus
+  PublishedStatus: PublishedStatus
+  RequiredGuardrailType: WL_RequiredGuardrailType
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-PA001: Published Agent {{AgentName}} Missing Declared Guardrails"
+  alertDescriptionFormat: "{{PostureFinding}} | {{ValidationNote}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

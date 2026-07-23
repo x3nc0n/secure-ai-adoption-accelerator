@@ -44,5 +44,13 @@
     "metadata": {
       "description": "Unique id for the watchlist"
     }
+  },
+  "watchlist3-id": {
+    "type": "string",
+    "defaultValue": "AIGS_ApprovedAgents",
+    "minLength": 1,
+    "metadata": {
+      "description": "Unique id for the watchlist"
+    }
   }
 }

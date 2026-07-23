@@ -1,0 +1,2 @@
+ItemKey,AgentId,AgentName,Platform,BaselineVersion,RequiredGuardrailType,Status,BaselineOwner,LastReviewed,Notes
+AGENT-TEMPLATE-001,00000000-0000-0000-0000-000000000001,Example Agent,Example Platform,1.0,Organization-defined,Template,security@example.com,2026-07-22,Replace this template row and set Status to Active

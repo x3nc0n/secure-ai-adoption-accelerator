@@ -2,6 +2,21 @@
 
 ---
 
+## v3.0.3-preview.1 — Agent 365 Preview Batch
+
+**Release date:** 2026-07-22
+**Release type:** Preview
+**Scope:** Module B Agent 365 vertical slice and workbook reliability fixes
+
+- Added two fail-closed `AgentsInfo` analytics rules: missing declared guardrails and approved-baseline version/platform drift.
+- Added `AIGS-Hunt-AgentConfigurationDrift` and the `AIGS_ApprovedAgents` Watchlist.
+- Added Agent 365 inventory coverage to the workbook and corrected the health query to use `AgentsInfo.Timestamp`.
+- Repaired workbook KQL Unicode escape failures and reshaped executive KPIs for valid tile rendering.
+- Added source validation that rejects unsupported KQL Unicode escapes and wildcard tile column mappings.
+- Rejected the planned external-identity hunt and DLP-enforcement claim because current `AgentsInfo` documentation exposes neither a stable creator/tenant field nor external Purview DLP enforcement state.
+
+---
+
 ## v3.0.1-preview.1 — Reference Batch
 
 **Release date:** 2026-07-17  
