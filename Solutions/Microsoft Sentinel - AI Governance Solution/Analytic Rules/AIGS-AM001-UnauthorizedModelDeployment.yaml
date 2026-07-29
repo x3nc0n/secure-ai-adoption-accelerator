@@ -1,0 +1,145 @@
+id: 752bbac1-66ff-4bba-93f7-46a57bbd793d
+name: "[AIGS] Audit Monitor - Unauthorized AI Model Deployment"
+version: 1.0.0
+kind: Scheduled
+description: |
+  Detects successful ARM control-plane deployment of an Azure OpenAI / Azure AI Foundry
+  (Microsoft.CognitiveServices) model deployment that is absent from the approved-model
+  baseline (AIGS_ApprovedModels watchlist). A finding indicates a deployment write not
+  present in the approved-model inventory; the SOC analyst validates whether the
+  deployment was authorized.
+
+  SCOPE: CognitiveServices provider only.
+  Operation: Microsoft.CognitiveServices/accounts/deployments/write (case-insensitive).
+  Terminal-success filter: ActivityStatusValue in~ ("Success","Succeeded").
+  Azure Machine Learning (Microsoft.MachineLearningServices) and other providers are
+  out of scope — their operations are not verified.
+
+  MODEL NAME LIMITATION: Deployment name (extracted from the ARM resource path) is used
+  as the model proxy. The actual model name, version, and SKU live in the ARM request
+  body (Properties field), which is not a documented AzureActivity column. Deployment
+  names may be custom aliases; analyst confirmation against Azure Resource Manager is
+  required when this rule fires.
+
+  REGION LIMITATION: AzureActivity does not contain resource location. Region compliance
+  is not possible from AzureActivity alone. No region filtering is applied.
+
+  FAIL-CLOSED: Detection requires a populated AIGS_ApprovedModels baseline with at least
+  one Status=Active row. An absent, empty, or Template-only baseline yields zero results.
+  Populate Active rows in AIGS_ApprovedModels before this rule produces findings.
+
+  JOIN KEY: composite tolower(AccountName)/tolower(DeploymentName). ItemKey is the
+  Sentinel watchlist search-index column only — not the detection join key.
+
+  ASIM: imAuditEvent — native (AzureActivity -> imAuditEvent Audit Event schema);
+  optional imAuditEvent mapping available. No custom parser required.
+
+  Module:   E — Azure General / Model Governance [Preview]
+  Control:  AIGS-AM001
+  Domain:   Audit Monitoring (AM)
+  Response: PB-NOTIFY-01 (notify and validate authorization; no auto-remediation)
+  Baseline: AIGS_ApprovedModels watchlist (Status=Active; composite AccountName+DeploymentName)
+  MCSB:     AM-2 (Use only approved services), AM-4 (Limit access to Azure resources)
+  NIST AI RMF: GOVERN 4.1 (AI policies are aligned with applicable laws)
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: AzureActivity
+    dataTypes:
+      - AzureActivity
+queryFrequency: 1h
+queryPeriod: 4h
+triggerOperator: gt
+triggerThreshold: 0
+tactics: []
+relevantTechniques: []
+tags:
+  - governance
+  - policy-compliance
+  - Model-Deployment-Monitoring
+  - Module-E
+query: |
+  // CONTROL: AIGS-AM001  MODULE: E — Azure General / Model Governance [Preview]
+  // ASIM: imAuditEvent — native (AzureActivity -> imAuditEvent; no custom parser required)
+  // Source: AzureActivity — built-in connector, no additional deployment required.
+  // Operation: microsoft.cognitiveservices/accounts/deployments/write (case-insensitive; live-verified uppercase)
+  // Terminal-success: ActivityStatusValue in~ ("Success","Succeeded") — both live-verified terminal values.
+  // Watchlist: AIGS_ApprovedModels (Status=Active; composite join on AccountName/DeploymentName)
+  // Join key: strcat(tolower(AccountName), "/", tolower(DeploymentName)) — composite ensures
+  //   deployment "gpt-4o" in account A is not treated as approved because it exists in account B.
+  //   ItemKey is the Sentinel search-index column only; not the detection join key.
+  // FAIL-CLOSED: ActiveBaselineCount > 0 gates the absence check.
+  //   Zero or Template-only Active rows -> zero results. Never fails open.
+  // Deduplication: arg_max(TimeGenerated,*) by ObservedKey collapses repeated correlated
+  //   terminal-success events within the 4h window to the most recent event per composite identity.
+  // PROHIBITED: region/location predicates, invented model/version columns, Properties field
+  //   parsing, bare leftanti/!in, Azure ML operations.
+  let DeployOp = "microsoft.cognitiveservices/accounts/deployments/write";
+  let ApprovedModels = materialize(
+      _GetWatchlist("AIGS_ApprovedModels")
+      | where Status =~ "Active"
+      | extend ApprovedKey = strcat(tolower(AccountName), "/", tolower(DeploymentName))
+      | project ApprovedKey, ModelId, ApprovedVersion, MaxCapacityTPM
+  );
+  let ActiveBaselineCount = toscalar(ApprovedModels | summarize count());
+  AzureActivity
+  | where TimeGenerated >= ago(4h)
+  | where tolower(OperationNameValue) == DeployOp
+  | where ActivityStatusValue in~ ("Success", "Succeeded")
+  | extend
+      AccountName    = tostring(extract(@"/accounts/([^/]+)", 1, tolower(_ResourceId))),
+      DeploymentName = tostring(extract(@"/deployments/([^/]+)", 1, tolower(_ResourceId)))
+  | where isnotempty(DeploymentName)
+  | extend ObservedKey = strcat(tolower(AccountName), "/", tolower(DeploymentName))
+  | summarize arg_max(TimeGenerated, *) by ObservedKey
+  | join kind=leftouter (ApprovedModels) on $left.ObservedKey == $right.ApprovedKey
+  | extend IsApproved = isnotempty(ApprovedKey)
+  | where ActiveBaselineCount > 0 and not(IsApproved)
+  | extend
+      FindingNote = strcat(
+          "Deployment '", DeploymentName, "' on account '", AccountName,
+          "' is absent from the AIGS_ApprovedModels approved-model baseline. ",
+          "Deployment name is a model proxy only — verify actual model name via ARM. ",
+          "Region validation is out of scope (no location field in AzureActivity). ",
+          "Response: PB-NOTIFY-01. Validate authorization and update baseline if approved."
+      )
+  | project
+      TimeGenerated,
+      AccountName,
+      DeploymentName,
+      Caller,
+      CallerIpAddress,
+      SubscriptionId,
+      ResourceGroup,
+      _ResourceId,
+      CorrelationId,
+      OperationNameValue,
+      ActivityStatusValue,
+      FindingNote
+entityMappings:
+  - entityType: Account
+    fieldMappings:
+      - identifier: FullName
+        columnName: Caller
+  - entityType: IP
+    fieldMappings:
+      - identifier: Address
+        columnName: CallerIpAddress
+  - entityType: AzureResource
+    fieldMappings:
+      - identifier: ResourceId
+        columnName: _ResourceId
+customDetails:
+  AccountName: AccountName
+  DeploymentName: DeploymentName
+  Caller: Caller
+  CorrelationId: CorrelationId
+alertDetailsOverride:
+  alertDisplayNameFormat: "AIGS-AM001: Unauthorized AI Model Deployment - {{DeploymentName}} on {{AccountName}}"
+  alertDescriptionFormat: "{{FindingNote}}"
+metadata:
+  author:
+    name: x3nc0n
+  support:
+    tier: Community
+    name: x3nc0n

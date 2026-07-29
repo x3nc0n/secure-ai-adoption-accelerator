@@ -72,6 +72,40 @@
 
 **Evidence source:** Azure-Sentinel repo (SHA `29e1987d1015171e4c9687edfd31170902b59c7a`), Microsoft Learn (2026-07-16)
 
+### 2026-07-23 — Module E Telemetry Contract Verified (AIGS-AM001 Foundation)
+
+**Task:** Produce strict authoritative telemetry contract for Module E unauthorized Azure AI model deployment monitoring (AIGS-AM001 rule design gate blocker).
+
+**Key Verified Claims (with citations):**
+1. **Operation identity:** `Microsoft.CognitiveServices/accounts/deployments/write` — CONFIRMED via RBAC catalog and ARM templates (Microsoft Learn)
+2. **Success state:** `ActivityStatusValue == "Success"` — CONFIRMED; excludes transient Started/Accepted states (Microsoft Learn Activity Log docs)
+3. **Model metadata non-observable:** AzureActivity does NOT contain model name/version/SKU; lives in ARM Properties (request body), not audit log — CONFIRMED via Stack Overflow Microsoft Learn consensus
+4. **Deployment name is proxy only:** Use as baseline match key; analyst verifies actual model via ARM API
+5. **Foundry + OpenAI same provider:** Both use `Microsoft.CognitiveServices/accounts/deployments` — CONFIRMED via Azure AI Foundry documentation
+6. **Azure ML is separate:** `Microsoft.MachineLearningServices` is distinct provider; operations unverified (roadmap item)
+7. **Fail-closed guarantee:** Empty baseline (zero Active rows) yields zero findings; guarded by WatchlistActive scalar
+8. **AzureActivity is built-in:** No connector install required; typical latency 1–5 minutes; 90-day retention — CONFIRMED (Activity Log docs)
+9. **ASIM native:** imAuditEvent parser available; no custom parser required for Audit Event schema alignment
+10. **Region validation impossible:** AzureActivity contains no resource location field; ResourceGroup is NOT a region proxy
+
+**Rejected Assumptions:**
+- ❌ Model name from Properties field — not documented, not guaranteed stable
+- ❌ Region/location compliance — no telemetry basis in AzureActivity
+- ❌ Azure ML deployment operations — separate provider, operations unverified
+- ❌ Delete-based detection — deletion is rare and destructive; belongs in roadmap access-control module
+
+**Contract Artifact:** `.squad/decisions/inbox/trinity-module-e-telemetry-contract.md` (signed, awaiting Morpheus acceptance per design gate)
+
+**Blocking Status:** Neo cannot author AIGS-AM001 KQL until Morpheus accepts this contract; contract gates Neo's implementation.
+
+**Durable Lessons:**
+- Deployment names are aliases, not model identifiers; baseline must use deployment names as match keys, not model names
+- AzureActivity audit log captures *operation* (who, when, status), not *resource state* (model name, version, config details); metadata must be sourced from ARM API
+- Fail-closed rule design (zero findings when baseline is empty) prevents both false positives and "everything unauthorized" failure modes
+- Verify every operation name against official RBAC catalog; do not invent based on ARM schema assumptions
+
+---
+
 ### 2026-07-17 — Workbook Audit & Correction (gen_workbook.py cleanup + artifact alignment)
 
 **Task:** Delete gen_workbook.py; audit AIGovernanceSolution.json against actual deployed artifacts; correct all false claims.

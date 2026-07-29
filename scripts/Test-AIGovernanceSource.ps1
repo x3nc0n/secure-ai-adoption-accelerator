@@ -1346,6 +1346,235 @@ if ($allYamlFiles.Count -eq 0) {
 }
 
 # ──────────────────────────────────────────────────────────────
+# CHECK 15: Module E AzureActivity — Fail-Closed Pattern, No Region, No Invented Columns
+# ──────────────────────────────────────────────────────────────
+Write-CheckHeader "Module E AzureActivity — Fail-Closed, Evidence-Contract Gates (Trinity v1)"
+
+# AzureActivity source-gate checks bound to the accepted Trinity evidence contract
+# (2026-07-23T17:15:47-05:00).  All sub-checks are low-false-positive by design:
+# FAIL only on structural impossibilities; WARN on confirmed best-practice deviations.
+#
+# E7a — No region/location column predicate (AzureActivity has no resource location field).
+# E7b — No invented model/version/SKU column OR Properties subkey access
+#        (model name/version/SKU live in ARM Properties, not in documented AzureActivity columns).
+# E7c — Scheduled rules using AIGS_ApprovedModels: fail-closed baseline pattern enforced:
+#        no bare leftanti/!in; must have toscalar scalar gate; must filter Status=Active.
+# E7d — Scheduled+ApprovedModels rules: ActivityStatusValue filter required (E7d-i FAIL);
+#        both terminal statuses 'Success' and 'Succeeded' must be covered (E7d-ii WARN).
+# E7e — Sub-hourly queryFrequency warning for all AzureActivity Scheduled rules.
+# E7f — Scheduled+ApprovedModels rules: CognitiveServices operation scope must appear in KQL.
+# E7g — Scheduled+ApprovedModels rules: composite AccountName+DeploymentName join key required.
+# E7h — Scheduled+ApprovedModels rules with entityMappings: Account/IP/AzureResource required.
+# E7k — Scheduled+ApprovedModels rules: confirmed queryFrequency=1h, queryPeriod=4h.
+#
+# Documented AzureActivity columns (Trinity EV-2 confirmed):
+#   TimeGenerated, OperationNameValue, ActivityStatusValue, _ResourceId, Caller,
+#   CallerIpAddress, SubscriptionId, ResourceGroup, CorrelationId, ResourceProviderValue.
+#   Properties column exists; operation-specific subkey access is prohibited.
+#
+# The $allYamlFiles collection was populated by Check 14 (same script scope).
+
+# Columns not present in the documented AzureActivity schema —
+# model name, version, and SKU live in ARM request body Properties (not a KQL column).
+$azureActivityInventedColumns = @(
+    'ModelName', 'ModelFamily', 'ModelVersion',
+    'SkuName', 'SkuCapacity',
+    'ResourceLocation', 'ResourceRegion', 'DeploymentRegion'
+)
+
+# Region/location column-comparison pattern. Specific to column predicates —
+# does NOT flag advisory strings like "region proxy" inside case() literals or comments.
+$regionPredicatePattern = '\b(ResourceLocation|ResourceRegion|DeploymentRegion|ApprovedRegion)\s*[=!~<>]'
+
+if (-not $allYamlFiles -or $allYamlFiles.Count -eq 0) {
+    Pass "MODULE-E" "No analytic rule or hunting query YAML files present — Module E checks not triggered"
+} else {
+    $moduleEFilesChecked = 0
+
+    foreach ($f in $allYamlFiles) {
+        $rel     = $f.FullName.Replace($RepoRoot, '').TrimStart('\','/')
+        $content = Get-Content $f.FullName -Raw -ErrorAction SilentlyContinue
+        if (-not $content) { continue }
+
+        # ── Step 1: Extract the raw KQL query block ───────────────────────────
+        $rawQueryBlockE = Get-YamlQueryBlock $content
+
+        # ── Step 2: Strip KQL comment lines ──────────────────────────────────
+        $qLinesE = $rawQueryBlockE -split "`r?`n" | Where-Object { $_ -notmatch '^\s*//' }
+
+        # ── Step 3: Strip _GetWatchlist materialize blocks ───────────────────
+        # Accumulate from 'let X = materialize(' through ');'; discard the block when
+        # it contains _GetWatchlist so watchlist column names don't trigger E7b.
+        $filteredLinesE = [System.Collections.Generic.List[string]]::new()
+        $accumBlockE    = [System.Collections.Generic.List[string]]::new()
+        $inAccumE       = $false
+        foreach ($ql in $qLinesE) {
+            if (-not $inAccumE -and $ql -match '\blet\s+\w+\s*=\s*materialize\s*\(') {
+                $inAccumE = $true; $accumBlockE.Clear(); $accumBlockE.Add($ql)
+            } elseif ($inAccumE) {
+                $accumBlockE.Add($ql)
+                if ($ql -match '^\s*\)\s*;') {
+                    $inAccumE = $false
+                    $blockTextE = $accumBlockE -join "`n"
+                    if ($blockTextE -match '\b_GetWatchlist\b') {
+                        $filteredLinesE.Add('// [watchlist-let-stripped-E7]')
+                    } else {
+                        foreach ($bl in $accumBlockE) { $filteredLinesE.Add($bl) }
+                    }
+                    $accumBlockE.Clear()
+                }
+            } else { $filteredLinesE.Add($ql) }
+        }
+        foreach ($bl in $accumBlockE) { $filteredLinesE.Add($bl) }
+
+        # ── Step 4: Strip remaining _GetWatchlist quoted arguments ────────────
+        $kqlForScanE = ($filteredLinesE -join "`n") -replace '_GetWatchlist\s*\(\s*"[^"]*"\s*\)', '_GetWatchlist("")'
+
+        # ── Gate: activate Module E checks only when AzureActivity is referenced ──
+        if ($kqlForScanE -notmatch '\bAzureActivity\b') { continue }
+
+        $moduleEFilesChecked++
+        $isScheduledRuleE  = ($content -match '(?m)^\s*kind\s*:\s*Scheduled')
+        # Raw query block used for watchlist reference — avoids false negatives from stripping
+        $refersApprovedModelsE = ($rawQueryBlockE -match '_GetWatchlist\s*\(\s*"AIGS_ApprovedModels"\s*\)')
+
+        # ── E7a: No region/location column predicates ─────────────────────────
+        if ($kqlForScanE -imatch $regionPredicatePattern) {
+            $matchCtxE = [regex]::Match($kqlForScanE, $regionPredicatePattern,
+                [System.Text.RegularExpressions.RegexOptions]::IgnoreCase).Value
+            Fail "MODULE-E" "$rel — E7a: AzureActivity query contains a region/location column predicate ('$matchCtxE'). AzureActivity does not carry resource location; region enforcement requires Azure Resource Graph correlation outside Sentinel KQL (Trinity EV-6)."
+        }
+
+        # ── E7b: No invented columns + no Properties subkey access ────────────
+        foreach ($invCol in $azureActivityInventedColumns) {
+            if ($kqlForScanE -match "\b$([regex]::Escape($invCol))\b") {
+                Fail "MODULE-E" "$rel — E7b: AzureActivity query references invented column '$invCol'. Model name, version, and SKU are in ARM request body Properties — not a documented AzureActivity column (Trinity EV-4). Deployment name is the observable proxy only."
+            }
+        }
+        # Properties subkey/index access is prohibited — operation-specific subkeys are not
+        # documented and model extraction from Properties is explicitly out of scope (Trinity EV-4).
+        if ($kqlForScanE -match '\bProperties\s*[\.\[]') {
+            Fail "MODULE-E" "$rel — E7b: AzureActivity query uses Properties subkey/index access ('Properties.xxx' or 'Properties[...]'). Operation-specific Properties subkeys are not documented; model name/version/SKU extraction from Properties is prohibited (Trinity EV-4)."
+        }
+
+        # ── Scheduled-rule checks ────────────────────────────────────────────
+        if ($isScheduledRuleE) {
+
+            # ── E7e: Sub-hourly queryFrequency (all AzureActivity Scheduled rules) ──
+            $freqMatchE = [regex]::Match($content, '(?m)^\s*queryFrequency\s*:\s*(\S+)')
+            if ($freqMatchE.Success) {
+                $freqRawE = $freqMatchE.Groups[1].Value.Trim("'`"")
+                $freqMinE = ConvertFrom-SentinelDuration $freqRawE
+                if ($null -ne $freqMinE -and $freqMinE -lt 60) {
+                    Warn "MODULE-E" "$rel — E7e: AzureActivity Scheduled rule has queryFrequency '$freqRawE' ($freqMinE min) shorter than 1h. Control-plane events have variable ingestion latency; sub-hourly runs risk missed events or duplicate detections."
+                }
+            }
+
+            # ── AIGS_ApprovedModels-scoped checks ────────────────────────────
+            if ($refersApprovedModelsE) {
+
+                # E7c-i: Bare leftanti is always fail-open against a possibly-empty baseline
+                if ($kqlForScanE -match '\bkind\s*=\s*leftanti\b') {
+                    Fail "MODULE-E" "$rel — E7c: Scheduled rule uses 'kind=leftanti' against AIGS_ApprovedModels baseline. Bare anti-join is fail-open: empty or Template-only baseline returns findings for every event. Use 'kind=leftouter' + isempty(matchedKey) guarded by a toscalar WatchlistActive scalar (Morpheus §5)."
+                }
+
+                # E7c-ii: Bare !in is fail-open when baseline is empty
+                if ($kqlForScanE -match '\!\s*in\s*\(') {
+                    Fail "MODULE-E" "$rel — E7c: Scheduled rule uses '!in(...)' pattern against baseline. Bare !in is fail-open when baseline is empty. Use 'kind=leftouter' + isempty() guarded by a toscalar WatchlistActive scalar (Morpheus §5)."
+                }
+
+                # E7c-iii: Warn when no toscalar scalar gate present
+                if ($kqlForScanE -notmatch '\btoscalar\b') {
+                    Warn "MODULE-E" "$rel — E7c: Scheduled rule references AIGS_ApprovedModels but no toscalar() WatchlistActive scalar guard detected. Without a scalar gate an empty or Template-only baseline (zero Active rows) may be fail-open (Morpheus §5). Add: let WatchlistActive = toscalar(Baseline | count() | project Count > 0);"
+                }
+
+                # E7c-iv: Status=Active filter absent — Template rows would be included as
+                # approved entries. Check raw query block (filter is inside the materialize
+                # block which is stripped from $kqlForScanE).
+                if ($rawQueryBlockE -notmatch 'Status\s*=~\s*"Active"' -and
+                    $rawQueryBlockE -notmatch "Status\s*=~\s*'Active'") {
+                    Warn "MODULE-E" "$rel — E7c: Scheduled rule references AIGS_ApprovedModels but 'Status =~ \"Active\"' filter absent. Template rows (Status=Template) in the shipped baseline would be included as approved entries, causing false negatives."
+                }
+
+                # E7d-i: ActivityStatusValue filter absent — use comment-stripped KQL to
+                # prevent a comment mentioning ActivityStatusValue from hiding the gap.
+                if ($kqlForScanE -notmatch '\bActivityStatusValue\b') {
+                    Fail "MODULE-E" "$rel — E7d: Scheduled rule references AIGS_ApprovedModels on AzureActivity but does not filter on ActivityStatusValue. Without this filter transient states (Start, Accepted, Failed) are evaluated, generating noise."
+                } else {
+                    # E7d-ii: Both confirmed terminal statuses must be covered.
+                    # AzureActivity live table contains both 'Success' and 'Succeeded'.
+                    # Check that both string literals appear in the comment-stripped KQL.
+                    $hasSuccessLit   = $kqlForScanE -imatch '"Success"'
+                    $hasSucceededLit = $kqlForScanE -imatch '"Succeeded"'
+                    if (-not ($hasSuccessLit -and $hasSucceededLit)) {
+                        Warn "MODULE-E" "$rel — E7d: ActivityStatusValue filter found but does not cover both confirmed terminal statuses ('Success' and 'Succeeded'). AzureActivity live table contains both. Use: ActivityStatusValue in~ (""Success"", ""Succeeded"") (Trinity EV-2)."
+                    }
+                }
+
+                # E7f: Operation scope — cognitiveservices must appear in KQL.
+                # Checks comment-stripped KQL so advisory comments like "// no cognitiveservices
+                # scope" do not create false negatives. The operation string or variable
+                # assignment is not in comments, so $kqlForScanE is correct.
+                if ($kqlForScanE -inotmatch 'cognitiveservices') {
+                    Warn "MODULE-E" "$rel — E7f: Scheduled rule references AIGS_ApprovedModels but operation scope not detected — 'cognitiveservices' not found in KQL. AM001 must scope to Microsoft.CognitiveServices/accounts/deployments/write (case-insensitive). Absent scope allows all AzureActivity write events to be evaluated (Trinity EV-1)."
+                }
+
+                # E7g: Composite join key — AccountName AND DeploymentName required.
+                # Deployment-name-only join causes cross-account false negatives
+                # (same deployment name in a different account is incorrectly approved).
+                $hasAccountNameE    = $kqlForScanE -match '\bAccountName\b'
+                $hasDeploymentNameE = $kqlForScanE -match '\bDeploymentName\b'
+                $missingKeyParts    = @()
+                if (-not $hasAccountNameE)    { $missingKeyParts += 'AccountName' }
+                if (-not $hasDeploymentNameE) { $missingKeyParts += 'DeploymentName' }
+                if ($missingKeyParts.Count -gt 0) {
+                    Warn "MODULE-E" "$rel — E7g: Scheduled rule does not reference composite join key component(s): $($missingKeyParts -join ', '). Join key must be composite AccountName+DeploymentName to prevent cross-account false negatives (Trinity contract: composite normalized baseline key)."
+                }
+
+                # E7h: Entity mapping types — when entityMappings declared on an
+                # ApprovedModels-scoped rule, Account/IP/AzureResource must all be present.
+                # Pattern handles YAML list-item format: '  - entityType: Account'
+                if ($content -match '(?m)^\s*entityMappings\s*:') {
+                    foreach ($et in @('Account', 'IP', 'AzureResource')) {
+                        if ($content -notmatch "(?m)^\s*-?\s*entityType\s*:\s*$([regex]::Escape($et))\b") {
+                            Warn "MODULE-E" "$rel — E7h: entityMappings declared but missing required entity type '$et'. Valid Module E entity types: Account (Caller), IP (CallerIpAddress), AzureResource (_ResourceId) (Trinity EV-7)."
+                        }
+                    }
+                }
+
+                # E7k: Confirmed schedule — 1h frequency / 4h period for control-plane
+                # latency and lookback window (Trinity EV-5).
+                $freqMatchK  = [regex]::Match($content, '(?m)^\s*queryFrequency\s*:\s*(\S+)')
+                $periodMatchK = [regex]::Match($content, '(?m)^\s*queryPeriod\s*:\s*(\S+)')
+                if ($freqMatchK.Success) {
+                    $freqRawK = $freqMatchK.Groups[1].Value.Trim("'`"")
+                    $freqMinK = ConvertFrom-SentinelDuration $freqRawK
+                    if ($null -ne $freqMinK -and $freqMinK -ne 60) {
+                        Warn "MODULE-E" "$rel — E7k: Scheduled rule with AIGS_ApprovedModels uses queryFrequency '$freqRawK' ($freqMinK min); confirmed queryFrequency is 1h (60 min) for AzureActivity control-plane latency (Trinity EV-5)."
+                    }
+                }
+                if ($periodMatchK.Success) {
+                    $periodRawK = $periodMatchK.Groups[1].Value.Trim("'`"")
+                    $periodMinK = ConvertFrom-SentinelDuration $periodRawK
+                    if ($null -ne $periodMinK -and $periodMinK -ne 240) {
+                        Warn "MODULE-E" "$rel — E7k: Scheduled rule with AIGS_ApprovedModels uses queryPeriod '$periodRawK' ($periodMinK min); confirmed queryPeriod is 4h (240 min) for control-plane lookback (Trinity EV-5)."
+                    }
+                }
+            }
+        }
+    }
+
+    if ($moduleEFilesChecked -eq 0) {
+        Pass "MODULE-E" "No AzureActivity references in query blocks — Module E checks not triggered"
+    } else {
+        $moduleEFailCount = ($script:Failures | Where-Object { $_ -like "*[MODULE-E]*" }).Count
+        if ($moduleEFailCount -eq 0) {
+            Pass "MODULE-E" "$moduleEFilesChecked AzureActivity file(s) checked — all Module E evidence-contract gates passed"
+        }
+    }
+}
+
+# ──────────────────────────────────────────────────────────────
 # SUMMARY
 # ──────────────────────────────────────────────────────────────
 Write-Host ""

@@ -12,7 +12,8 @@
     "Analytic Rules/AIGS-CD005-AIResourceDiagnosticsChanged.yaml",
     "Analytic Rules/AIGS-PA001-AgentMissingDeclaredGuardrails.yaml",
     "Analytic Rules/AIGS-CD002-AgentConfigDrift.yaml",
-    "Analytic Rules/AIGS-CD003-CopilotAgentModelDrift.yaml"
+    "Analytic Rules/AIGS-CD003-CopilotAgentModelDrift.yaml",
+    "Analytic Rules/AIGS-AM001-UnauthorizedModelDeployment.yaml"
   ],
   "Hunting Queries": [
     "Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml",
@@ -30,7 +31,7 @@
     "Playbooks/AIGS-Notify-001-TeamsAlert/azuredeploy.json",
     "Playbooks/AIGS-Auto-001-RestoreDiagnostics/azuredeploy.json"
   ],
-  "Version": "3.0.5",
+  "Version": "3.0.6",
   "Metadata": "SolutionMetadata.json",
   "TemplateSpec": true,
   "Is1PConnector": false,

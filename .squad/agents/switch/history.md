@@ -267,6 +267,108 @@ Deferred gates remain: TC-C-014, TC-C-017 (Azure deployment), E5 (Stage 2 playbo
 
 - **Check count expanded from 9 to 12.** New: Data Directory Structure (10), Manifest Completeness + Version + TemplateSpec (11), optional Package Validation (12).
 - **Check 2 (YAML):** Added `kind:` to required rule fields. Scheduled rules now require `queryFrequency:` and `queryPeriod:`; both parsed as Sentinel durations and checked against 14-day duplicate-control threshold. Playbook cross-references in `Response:` lines mapped via `$script:KnownPlaybookMap` and verified to exist on disk.
+---
+
+### 2026-07-23T17:25:15-05:00: Module E Validator Gate v1 — Hunt/Watchlist Audit + Check 15 + Regression Suite
+
+**Authorized files edited:** `scripts/Test-AIGovernanceSource.ps1`
+**New files:** `scripts/Test-ModuleEChecks.ps1`, `.squad/decisions/inbox/switch-module-e-validation-gates.md`
+
+**Check count:** 14 → 15. Run result: **15 checks, 111 passes, 0 warnings, 0 failures** — all existing Module A/B/C content clean.
+
+**Independent Hunt Audit — `AIGS-Hunt-AIModelDeploymentChanges` (GUID `b4f2a8d1-..4d63`):**
+- GUID, module (E), control (AM001 reference), connector (`AzureActivity`), `ActivityStatusValue =~ "Success"` filter, `tolower(OperationNameValue)` normalization — all ✅ PASS.
+- No region/location predicate; Region column present in watchlist but explicitly not filtered (correctly documented) ✅.
+- `kind=leftouter` + `WatchlistDeployed = toscalar(count() > 0)` scalar guard — correct surface-all-when-absent for hunt context ✅.
+- Template-only baseline → WatchlistDeployed=false → all events surfaced (correct baseline seeding behavior) ✅.
+- No invented columns; only documented AzureActivity fields used ✅.
+- ASIM: `imAuditEvent — native (AzureActivity)` ✅.
+- **One documentation note (non-blocking):** Hunt comment says "ModelId (searchKey)" — loose wording. Sentinel's actual index column is `ItemKey` (`itemsSearchKey`). The detection join key is `DeploymentName` (a data column). Comment-only issue; no functional defect.
+
+**Independent Watchlist Audit — `AIGS_ApprovedModels` (GUID `1a4b8eea-..0d15`):**
+- `itemsSearchKey: "ItemKey"` matches guids.json `searchKey: "ItemKey"` ✅.
+- ARM template shape, all 12 CSV columns, rawContent/CSV parity, zero `Status=Active` rows (Template row only) — all ✅ PASS.
+- `Region` column present but not used for filtering — correct per Morpheus §2.2 ✅.
+
+**Check 15 (MODULE-E) implementation — 8 sub-checks, telemetry-independent:**
+- **E7a:** FAIL if `ResourceLocation`, `ResourceRegion`, `DeploymentRegion`, or `ApprovedRegion` column used in KQL comparison (AzureActivity has no resource location — structurally false claim).
+- **E7b:** FAIL if `ModelName`, `ModelFamily`, `ModelVersion`, `SkuName`, `SkuCapacity`, `ResourceLocation`, `ResourceRegion`, `DeploymentRegion` appear as KQL column references (model name/SKU not reliably observable from AzureActivity).
+- **E7c-i/ii:** FAIL if Scheduled rule with AIGS_ApprovedModels uses `kind=leftanti` or `!in(...)` (fail-open against empty/Template-only baseline).
+- **E7c-iii:** WARN if Scheduled rule with AIGS_ApprovedModels has no `toscalar` scalar gate.
+- **E7c-iv:** WARN if Scheduled rule with AIGS_ApprovedModels missing `Status =~ "Active"` filter (Template rows included as approved).
+- **E7d:** FAIL if Scheduled rule with AIGS_ApprovedModels reference and AzureActivity has no `ActivityStatusValue` filter (comment-stripped KQL; comment-only mention does not suppress failure).
+- **E7e:** WARN if Scheduled AzureActivity rule has `queryFrequency` < 60 min.
+- False-positive mitigations: comment stripping, watchlist materialize block stripping, column-comparison specificity (case() string literals with "region" text do NOT trigger E7a).
+
+**Regression test (`Test-ModuleEChecks.ps1`) — 10/10 assertions pass:**
+- E7c leftanti FAIL ✅, E7c toscalar WARN ✅, E7d ActivityStatusValue FAIL ✅, E7a region FAIL ✅, E7b ModelName FAIL ✅.
+- False-positive guards: good hunt (no E7a from case() region strings) ✅, good rule (no E7c/E7d with correct pattern) ✅.
+
+**Operation strings and field allowlists NOT hardcoded per Morpheus design gate:** Check 15 is deliberately telemetry-independent. The required operation string (`microsoft.cognitiveservices/accounts/deployments/write`) is not asserted as required — that assertion must wait for Trinity's evidence contract (EV-1 through EV-8 gated items in the decision doc).
+
+**Gates still waiting on Trinity (evidence contract EV-1–EV-8):**
+- Exact OperationNameValue and casing confirmation
+- ActivityStatusValue terminal-success value confirmation
+- `_ResourceId` ARM path extract pattern confirmation
+- Model name/version/SKU non-observability confirmation (expected: NOT observable)
+- Recommended queryFrequency/queryPeriod target values (ingestion latency)
+- Multi-provider boundary (CognitiveServices only for MVP)
+- Entity mapping column names (Account=Caller, IP=CallerIpAddress, AzureResource=_ResourceId) formal confirmation
+- Connector/licensing (built-in, no connector)
+
+**Key learning — fail-open anti-join is the highest-risk Module E pattern:**
+`kind=leftanti` against a possibly-empty watchlist is structurally fail-open — if the watchlist is absent or has only Template rows, every AzureActivity deployment event fires as "unauthorized." This is the inverse of the desired fail-closed behavior. The Morpheus §5 pattern (leftouter + isempty(matchedKey) + toscalar WatchlistActive scalar gate) is the only safe approach. E7c-i makes this a hard FAIL at source gate, blocking it before any deployment.
+
+---
+
+### 2026-07-23T17:15:47-05:00: Module E Validator Gate v2 — Trinity Final Contract Binding
+
+**Authorized files edited:** `scripts/Test-AIGovernanceSource.ps1`, `scripts/Test-ModuleEChecks.ps1`
+**Decision doc updated:** `.squad/decisions/inbox/switch-module-e-validation-gates.md` (§10 added)
+**Trigger:** Morpheus accepted Trinity's evidence contract with live AzureActivity proof.
+
+**Contract bindings (EV-1 through EV-8 — all resolved):**
+- **EV-1 operation:** `Microsoft.CognitiveServices/accounts/deployments/write` (case-insensitive, live-verified) → E7f: `cognitiveservices` required in comment-stripped KQL (use `$kqlForScanE`, NOT `$rawQueryBlockE` — see key learnings).
+- **EV-2 terminal statuses:** Both `"Success"` and `"Succeeded"` confirmed in live AzureActivity table → E7d-ii WARN if only one literal found. `in~("Success","Succeeded")` is required in AM001.
+- **EV-3 ResourceId parse:** Non-empty CognitiveServices account + deployment names → E7g: both `AccountName` and `DeploymentName` must appear in cleaned KQL.
+- **EV-4 Properties prohibition:** Column exists but operation-specific subkeys not documented → E7b extended: `Properties.xxx`/`Properties[...]` access → FAIL.
+- **EV-5 schedule:** `queryFrequency: 1h` / `queryPeriod: 4h` confirmed → E7k: warns on deviation from 1h/4h for ApprovedModels rules.
+- **EV-6 scope boundary:** Azure ML out of scope → E7f catches missing scope implicitly.
+- **EV-7 entity columns:** `Caller` (Account), `CallerIpAddress` (IP), `_ResourceId` (AzureResource) → E7h: all 3 entity types required when `entityMappings:` declared.
+- **EV-8 connector:** AzureActivity built-in, confirmed. Already handled by Check 14.
+
+**Gate v2 Check 15 sub-checks added:** E7d-ii, E7f, E7g, E7h, E7k (9 total sub-checks E7a–E7k).
+
+**Regression test (Gate v2):** 11 fixtures / 16 assertions — **16/16 PASS** ✅.
+Typed scenarios covered: both terminal statuses, cross-account deployment name, Properties access, deployment-only key, wrong schedule, incomplete entity mappings, false-positive guards for good hunt and good rule.
+
+**Production validator results (Gate v2):**
+- 15 checks / 114 passes / 0 warnings / 0 MODULE-E failures ✅.
+- AM001 (`AIGS-AM001-UnauthorizedModelDeployment.yaml`) authored by Neo — passes ALL E7a–E7k gates.
+- Check 13 FAIL: AM001 GUID not yet promoted in `guids.json` (Tank action — not Switch-owned).
+- Module C regression: 10/10 PASS (no regressions from Gate v2 changes) ✅.
+
+**Key learnings — Gate v2:**
+
+1. **E7f must check comment-stripped KQL, not raw query block.** A fixture comment `// no cognitiveservices scope` contained the word "cognitiveservices." The E7f check against `$rawQueryBlockE` (which includes comments) matched the comment text and falsely suppressed the warning. Changing E7f to check `$kqlForScanE` (comment-stripped) fixed the false negative. Rule: any check looking for a required operational keyword must use comment-stripped KQL so advisory comments don't mask gaps.
+
+2. **YAML entity-type regex must allow the list-item dash.** YAML Sentinel rule format is `  - entityType: Account`. The original pattern `^\s+entityType` required whitespace immediately before `entityType` and failed to match `  - entityType` because the dash is not whitespace. Fixed to `^\s*-?\s*entityType` which handles the optional `- ` list-item prefix. Lesson: YAML block sequences always use `- ` prefix before the first key in each map entry.
+
+3. **E7k (schedule enforcement) must be scoped to ApprovedModels rules only.** AzureActivity Scheduled rules with other watchlists or no watchlists should not have 1h/4h enforced. E7k is correctly inside the `$refersApprovedModelsE` scope gate.
+
+4. **Composite key is a security control, not just style.** Deployment-name-only joins cause cross-account false negatives: `gpt-4o` in account B is incorrectly treated as approved if `gpt-4o` appears in account A's baseline. The composite `tolower(AccountName) + "/" + tolower(DeploymentName)` key is required by the evidence contract. E7g makes this detectable at source gate.
+
+5. **Single terminal status is a coverage gap, not a syntax error.** AzureActivity live table emits both `"Success"` and `"Succeeded"` for the same operation class. A rule using only `=~ "Success"` misses `Succeeded` events — real findings are missed. E7d-ii WARN makes this detectable without blocking (FAIL reserved for complete absence).
+
+
+**Key learning — hunt vs. rule behavior distinction:**
+A hunting query correctly uses surface-all-when-absent (WatchlistDeployed=false → show all events for baseline seeding). An analytic rule must be fail-closed (WatchlistActive=false → zero findings). These are opposite defaults serving different purposes. Check 15 E7c applies only to `kind: Scheduled` rules, not hunting queries, preserving this distinction.
+
+**Key learning — comment-stripping is essential for E7d:**
+The no-success fixture's comment line `// FIXTURE-E-003 — no ActivityStatusValue filter present (comment mentions it to test stripping)` contains "ActivityStatusValue." If Check 15 E7d checked the raw query block (including comments), the fixture would produce a false negative — the check would pass despite no actual filter. Using `$kqlForScanE` (comment-stripped) for E7d detection and `$rawQueryBlockE` (unstripped) only for the Status=Active filter check (which lives inside the materialize block) is the correct split.
+
+---
+
 - **Check 4 (Hardcoded IDs):** Expanded to scan `scripts/` directory. Self-exclusion for validator script (contains detection patterns). Watchlist exclusion broadened from `Data\Watchlists\` to all `\Watchlists\` paths.
 - **Check 6 (Watchlist) rewritten:** Canonical format is ARM template at `Watchlists/<name>/<name>.json` (not old flat `Data\Watchlists\` metadata). Validates: ARM shape, Watchlist resource in `resources[]`, `itemsSearchKey == "ItemKey"`, `rawContent == CSV` (CRLF→LF normalized), CSV columns `ItemKey`+`Status`, no `Status=Active` baseline rows. Legacy `Data\Watchlists\` content flagged as requiring migration.
 - **Check 9 (Placeholders):** Added `[PENDING_*]` bracket pattern. Expanded to scripts directory. Watchlist data files remain excluded.
@@ -364,3 +466,186 @@ Deferred gates remain: TC-C-014, TC-C-017 (Azure deployment), E5 (Stage 2 playbo
 - All 17 deployment operations completed without errors. ARM incremental mode with no deletes confirmed safe for additive solution upgrades.
 
 **Plan status:** .azure/deployment-plan.md → **Deployed**
+
+
+---
+
+### 2026-07-24T08:21:52.393-05:00: Module E 3.0.6 Independent Reviewer Gate (Gate v3)
+
+**Role:** Independent reviewer (Switch — Validation Engineer). Did not author Module E content, workbook, docs, guids, manifest, or package.
+**Verdict:** ❌ REJECT — one blocking defect in hunt YAML
+**Artifact:** `.squad/decisions/inbox/switch-module-e-review-verdict.md`
+
+**Validator results (production tree):**
+- `Test-AIGovernanceSource.ps1`: 117 passes / 0 warnings / 0 failures ✅
+- `Test-ModuleEChecks.ps1` Gate v2: 16/16 assertions ✅
+- `Test-ModuleCChecks.ps1`: 10/10 assertions ✅
+
+**Scope items reviewed:** Git diff since ab6f221 (18 changed files), AM001 YAML KQL, hunt YAML KQL, watchlist interface, workbook JSON/KQL, README/PREREQUISITES/CHANGELOG/ReleaseNotes, guids.json, manifest, 3.0.6 package.
+
+**BLOCKING DEFECT:**
+- `Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml` line 92: `ActivityStatusValue =~ "Success"` — single terminal status only.
+- Trinity EV-2 confirmed both `"Success"` and `"Succeeded"` as terminal statuses for `Microsoft.CognitiveServices/accounts/deployments/write`.
+- Workbook hunt tile was correctly updated to `in~ ('Success','Succeeded')`; the shipped YAML and its comment were not.
+- Impact: Baseline-seeding via hunt produces incomplete inventory → AM001 detects `Succeeded` deployments not in baseline → false-positive unauthorized-deployment alerts.
+- **Revision agent:** Morpheus. **Neo locked out** of this file until Morpheus's revision passes re-review.
+
+**NON-BLOCKING (required in same PR):**
+- `PREREQUISITES.md` header: `v3.0.5-preview.1` → `v3.0.6-preview.1` (stale; all other docs correctly show 3.0.6).
+- **Revision agent:** Morpheus or Tank.
+
+**Advisory (not blocking):**
+- PREREQUISITES.md: `ItemKey` conflated with composite detection join key formula.
+- PREREQUISITES.md: "inner join" label should be "guarded leftouter join."
+
+**All other checks PASS:**
+- AM001 KQL: all 10 typed fixture scenarios verified correct.
+- AM001 contract compliance: EV-1 (operation exact match), EV-2 (both statuses), EV-3 (ResourceId parse + composite key), EV-4 (no Properties subkeys), EV-5 (1h/4h schedule), EV-6 (no Azure ML), EV-7 (entity mappings), EV-8 (AzureActivity connector).
+- No region/model/version/SKU/Properties/AzureML/delete/unsupported-MITRE claims.
+- Workbook JSON valid, 16 isfuzzy guards, AM001 SOC tile KQL correct (`in~`, composite join, fail-closed, arg_max dedup).
+- Package: 3.0.6.zip present (48,992 bytes), 3.0.5.zip deleted, 18 resources (1 pkg + 13 templates + 4 watchlists).
+- guids.json: AM001 promoted to main body, `status: resolved`, `module: E`.
+- Secrets: no credential exposure. No unexpected changes.
+- Module C intact: CD003 kind=inner, version 1.0.0, Module C regression 10/10.
+
+**KEY LEARNINGS:**
+
+1. **Hunt/workbook terminal-status divergence:** The workbook tile was updated during Gate v2 to use `in~("Success","Succeeded")`, but the corresponding hunt YAML was not updated. Content shipped as a batch must be reviewed for cross-file consistency, not just individual file correctness. When a multi-file operation (hunt → workbook) uses the same filter predicate, both files must be in sync.
+
+2. **Check 15 E7d-ii scope gap:** E7d-ii (terminal status set check) was scoped to Scheduled rules only (`$isScheduledRuleE`). This means the hunt YAML's single-status filter at line 92 was NOT caught by the production validator. Future enhancement: extend E7d-ii scope to hunting queries, or add a new E7d-iii sub-check specifically for AzureActivity hunting queries that also need complete terminal status coverage.
+
+3. **Reviewer divergence as signal:** When a workbook tile KQL and its source hunt YAML diverge on a contract-defined filter, the workbook is a useful "reference" and the YAML is likely the stale artifact. During review, comparing cross-file semantics is as important as per-file correctness.
+
+4. **Documentation version header as last-line check:** PREREQUISITES.md version header was stale at base commit and was not bumped during the Module E batch despite content updates. A version-header consistency check (README vs CHANGELOG vs ReleaseNotes vs PREREQUISITES) should be added to the production validator or the packaging gate (Tank).
+
+5. **Gate v3 confirmed no regressed work:** Gates v1 and v2 validator work (117 passes, Module E 16/16, Module C 10/10) remained fully green on the production tree under reviewer conditions. No regression from Module E content additions.
+
+
+---
+
+### 2026-07-24T09:08:02.650-05:00: Module E 3.0.6 Cycle 2 Re-Review — APPROVED
+
+**Verdict:** ✅ APPROVE
+**Artifact:** `.squad/decisions/inbox/switch-module-e-review-verdict.md` §8
+
+**Cycle 1 REJECT resolution confirmed:**
+- Hunt YAML line 92: `ActivityStatusValue in~ ("Success","Succeeded")` — both terminal statuses ✅
+- Hunt comment block updated (line 55 area): both statuses documented, ItemKey vs. join key separated ✅
+- PREREQUISITES.md line 3: `v3.0.6-preview.1` ✅
+- PREREQUISITES advisory A3.1 (ItemKey/join-key): resolved with explicit separation in watchlist table ✅
+- PREREQUISITES advisory A3.2 (inner join label): line 326 summary unchanged, but line 359 paragraph explicitly says "guarded left-outer join (not inner join)"; self-correcting within the section — acceptable for APPROVE
+
+**Package regeneration verified:**
+- mainTemplate hunt KQL: `ActivityStatusValue in~ (\"Success\",\"Succeeded\")` ✅
+- 3.0.6.zip: 49,057 bytes (regenerated); 3.0.5.zip absent ✅
+- 18 resources, `_solutionVersion: 3.0.6` ✅
+- AM001 semantic invariants unchanged (in~, fail-closed, composite key, 1h/4h) ✅
+- Hunt seeding invariants unchanged (WatchlistDeployed, leftouter, graceful degradation) ✅
+
+**Validators:** 117/0/0 prod · 16/16 Module E · 10/10 Module C ✅
+
+**KEY LEARNING — Cycle 2 package search pattern:**
+When verifying that a packaged KQL matches the corrected source, do NOT use the content-template resource-name string as an anchor — it appears early in the JSON and the subsequent `ActivityStatusValue` match may come from a different resource. Instead, anchor on a **unique KQL variable** from the query body (`let LookbackPeriod` or `let DeployOp`) to find the exact hunt content section, then check `ActivityStatusValue` within that window.
+
+**Neo lockout lifted:** Morpheus correction approved; Neo's lockout on `AIGS-Hunt-AIModelDeploymentChanges.yaml` released.
+
+---
+
+### 2026-07-23T20:40:00Z: Module E 3.0.6 Azure Validation — Local PASS, ARM BLOCKED (device-code auth)
+
+**Role:** Switch (Validation Engineer) — azure-validate skill run against 3.0.6 package.
+**Artifact:** `.squad/decisions/inbox/switch-module-e-azure-validation.md`, `.azure/deployment-plan.md` §11
+
+**Context:** Post-Gate-v3-APPROVE azure-validate pass for Module E (3.0.6). Auth to SC-Management tenant `ef4ecf0b-a160-444b-a405-ce3bf1f98752` required in isolated `AZURE_CONFIG_DIR` (`.azcfg-validate`). User was not present to complete device-code flow during three attempts.
+
+**Local gate results (all PASS):**
+- Source/package validator: **15 checks, 119 passes, 0 warnings, 0 failures** (up from 117 — E7 checks expanded to 15-check set)
+- Module E regression suite: **16/16 assertions PASS** (E7a–E7k, false-positive guards for good rule + good hunt)
+- Package version/shape: `_solutionVersion: 3.0.6`, 18 resources (1 pkg + 13 contentTemplates + 4 watchlists), delta = +1 contentTemplate (AIGS-AM001)
+- AIGS-AM001 GUID `752bbac1-66ff-4bba-93f7-46a57bbd793d` matches guids.json registry ✅
+- 3.0.6.zip: 2 entries only (createUiDefinition.json 32.1 KB + mainTemplate.json 255.2 KB) — no extraneous files ✅
+- Static RBAC: 0 roleAssignment resources, 0 identity blocks, 0 UAMI parameters — identical footprint to 3.0.5 ✅
+
+**ARM gate results (all BLOCKED):**
+- Three device-code login attempts in isolated dir `.azcfg-validate`; codes E6ESMAMAL, EX8P8NWNJ, FCHTFR6PG — all expired with `AADSTS70016: Authorization is pending` (user did not complete flow)
+- ARM group validate: NOT RUN
+- ARM what-if ResourceIdOnly: NOT RUN
+- Zero-delete assertion: NOT ASSERTED
+
+**Plan status:** `.azure/deployment-plan.md` remains `Deployed` (3.0.5). 3.0.6 not deployable until ARM validate + what-if (zero deletes) confirmed.
+
+**Learnings:**
+
+1. **Device-code auth in non-interactive sessions:** When Switch runs as a non-interactive sub-agent, device-code login requires the user to actively monitor the terminal output and complete the flow within the expiry window (~15 min per code). Three codes were generated but never completed. The pattern of multiple expiries without the user acting suggests the user ran the task asynchronously — Switch should surface the code prominently and wait with escalating polling, then stop and record the blocker rather than generating additional codes.
+
+2. **Local-vs-ARM split validation pattern:** The 3.0.6 validation demonstrates a viable two-phase split: (a) complete all local gates (source validator, regression, static analysis) immediately, record them as PASS; (b) attempt ARM gates, record BLOCKED with exact commands needed to resume. This avoids total-failure reporting when only the auth step is missing.
+
+3. **Source validator check count growth:** The production validator grew from 14 checks (3.0.5 era, 112 passes) to 15 checks (3.0.6 era, 119 passes). Check 15 (Module E AzureActivity contract gates) was added for E7a–E7k. This is expected growth as content modules ship.
+
+4. **Isolated config dir naming:** The standard isolated Azure CLI config dir for this project is `.azcfg-validate` at the repo root. Use `$env:AZURE_CONFIG_DIR = ".azcfg-validate"` or the full absolute path. Do NOT use TEMP or system temp dirs — stay in the repo root per the project's security/environment requirements.
+
+---
+
+### 2026-07-29T09:27:17-05:00: Module E 3.0.6 Azure Validation Restart — Local PASS, ARM BLOCKED (device-code auth, 4th attempt)
+
+**Role:** Switch (Validation Engineer) — clean restart of stale validation run; azure-validate skill.
+**Prior stale agent stopped.** All prior proof preserved.
+**Artifact:** `.azure/deployment-plan.md` §11 "3.0.6 Validation Restart — 2026-07-29"
+
+**Context:** Restart requested by x3nc0n after previous run remained stale. Session at `.azcfg-validate` had expired auth. New device-code flow initiated; code `B6GHMCHPC` at https://login.microsoft.com/device — expired with `AADSTS70016` (user did not complete in ~15 min window). Fourth total expiry across all attempts.
+
+**Local gate results (all PASS — confirmed stable, 4th consecutive clean run):**
+- Source/package validator: **15 checks, 119 passes, 0 warnings, 0 failures** ✓ (2026-07-29T09:30:00-05:00)
+- Module E regression suite: **16/16 assertions PASS** — E7a–E7k, false-positive guards ✓ (2026-07-29T09:31:00-05:00)
+- Package version/shape: `_solutionVersion: 3.0.6`, 18 resources (1 contentPackages + 13 contentTemplates + 4 Watchlists) ✓
+- 3.0.6.zip: 2 entries (createUiDefinition.json 32.1 KB + mainTemplate.json 255.2 KB) ✓
+- Static RBAC: **0 roleAssignment resources, 0 identity blocks, 0 UAMI parameters, 0 Microsoft.Authorization resources** — all 18 resources are Microsoft.OperationalInsights Sentinel content; no RBAC footprint ✓
+
+**ARM gate results (BLOCKED — 4th expiry):**
+- Device code `B6GHMCHPC` expired without user completion
+- ARM validate: NOT RUN; ARM what-if: NOT RUN; zero-delete assertion: NOT ASSERTED
+- Plan status: remains `Deployed` (3.0.5)
+
+**Key learnings:**
+
+1. **Persistent auth blocker pattern:** Four consecutive device-code expirations across multiple sessions indicate this validation cannot complete without the user being present at the terminal during the auth window. The user must be ready to visit https://login.microsoft.com/device and enter the code within 15 minutes of Switch issuing it.
+
+2. **Resume recipe:** Once user is ready to complete auth, run:
+   ```
+   cd C:\Users\jospaid\.source\GitHub\secure-ai-adotpion-accelerator
+   $env:AZURE_CONFIG_DIR = ".azcfg-validate"
+   az login --use-device-code --tenant ef4ecf0b-a160-444b-a405-ce3bf1f98752
+   # Complete code at https://login.microsoft.com/device, THEN immediately re-invoke Switch
+   ```
+   After auth, Switch needs only to run ARM validate + what-if (both commands documented in deployment-plan.md §11). All local gates have passed four times; no re-run needed.
+
+3. **Validate only what needs it:** Local gates are stable (same 119/15/16 results on every re-run). Future restarts should skip local gates if `.azure/deployment-plan.md` already shows them PASS for the same package hash, saving ~5 min per run.
+
+---
+
+### 2026-07-29T09:55:00-05:00: Module E 3.0.6 Azure Validation — COMPLETE PASS ✅
+
+**Role:** Switch (Validation Engineer) — ARM gates completed after coordinator completed isolated device-code auth.
+**Artifact:** `.azure/deployment-plan.md` §11 "3.0.6 Validation Restart — 2026-07-29"
+
+**Context:** Coordinator completed device-code auth to tenant `ef4ecf0b-a160-444b-a405-ce3bf1f98752` in `.azcfg-validate`. Switch resumed immediately. SC-Management subscription required an explicit `az account set` before running ARM commands (active subscription was a personal sub; correct sub selected by ID).
+
+**ARM gate results (all PASS):**
+- `az account show`: SC-Management / `45da0317-4f5c-4be6-ae96-e8945b6f4c57` / tenant `ef4ecf0b-a160-444b-a405-ce3bf1f98752` / `jospaid@MngEnvMCAP643271.onmicrosoft.com` ✓
+- `az deployment group validate`: **Succeeded; error: null** ✓
+- `az deployment group what-if --result-format ResourceIdOnly`: **1 Create, 17 Deploy, 13 Ignore, 0 Delete** ✓
+- Zero-delete hard guardrail: **0 Deletes — SATISFIED** ✓
+- What-if Create: `contentTemplates/law-sc-westus2-ar-rke6ax5o7zj6c` = AIGS-AM001-UnauthorizedModelDeployment (Module E net-new) ✓
+- What-if Deploy: 1 contentPackage + 12 contentTemplates + 4 Watchlists (all existing 3.0.5 resources updated) ✓
+- What-if Ignore: 3 DCRs, 2 workbooks, 2 UAMIs, 1 workspace, 2 OMSolutions, 2 Web/connections — all unrelated, none modified ✓
+- Static RBAC cross-check: both UAMIs (`mi-sc-westus2`, `uami-security-logging`) in Ignore list — not touched ✓
+
+**Plan status:** Updated to `Validated (3.0.6)`. Ready for azure-deploy.
+
+**Key learnings:**
+
+1. **`az account set` required after device-code login:** After login to a multi-subscription tenant, the active subscription may default to a personal or first-listed subscription rather than the target. Always explicitly `az account set --subscription <id>` and verify with `az account show` before running any ARM commands.
+
+2. **3.0.6 what-if signature:** `1 Create / 17 Deploy / 13 Ignore / 0 Delete`. The single Create is AIGS-AM001 (Module E). The 17 Deploys are all existing 3.0.5 resources receiving the version bump. The 13 Ignores are non-AIGS workspace resources. This is the expected baseline for any 3.0.6 deployment against the current 3.0.5 state.
+
+3. **Validation complete:** After four restart cycles (local gates: 4× PASS; ARM gates: 1× PASS on this run), 3.0.6 is fully validated. All gates green, zero-delete confirmed, RBAC footprint unchanged.

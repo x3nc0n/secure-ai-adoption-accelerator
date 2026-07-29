@@ -1,6 +1,6 @@
 # Microsoft Sentinel — AI Governance Solution
 
-> **Community Solution** · **v3.0.3-preview.1** · Module B Preview Batch
+> **Community Solution** · **v3.0.6-preview.1** · Module E Preview Batch
 > Supported via [GitHub Issues](../../issues) · Published by [x3nc0n](https://github.com/x3nc0n)
 
 ---
@@ -13,20 +13,22 @@ This solution follows all Microsoft Sentinel content and packaging conventions a
 
 ---
 
-## Current Status — Module B Preview Batch (v3.0.3-preview.1)
+## Current Status — Module E Preview Batch (v3.0.6-preview.1)
 
 | Aspect | Status |
 |--------|--------|
 | Module A — Azure OpenAI / Foundry | ✅ Reference implementation |
 | Module B — Agent 365 | ✅ Preview vertical slice: 2 rules, 1 hunt, 1 Watchlist, workbook coverage |
-| Modules C–G | 🔵 Designed and contracted; scaffolding not yet complete |
+| Module C — M365 Copilot | ✅ Preview vertical slice: 1 rule (model drift), 1 hunt, 1 Watchlist, workbook coverage |
+| Module E — Azure General | ✅ Preview vertical slice: 1 rule (unauthorized deployment), 1 hunt, 1 Watchlist, workbook coverage |
+| Modules D, F, G | 🔵 Designed and contracted; scaffolding not yet complete |
 | Solution package (`Package/`) | ✅ Generated with official V3 tooling; not hand-authored |
 | Deploy to Azure button | ⏳ Pending package generation and remote URL |
 | Validation workspace testing | 🔵 Gate 1b in progress (validation workspace: West US 2) |
 | Content Hub / Marketplace publication | ⏸️ Blocked — gated for human approval |
 
-This release contains deployable vertical slices for Module A (Azure OpenAI / Foundry) and
-Module B (Agent 365 Preview). Modules C–G remain designed but are not yet deployable.
+This release contains deployable vertical slices for Module A (Azure OpenAI / Foundry),
+Module B (Agent 365 Preview), Module C (M365 Copilot observed-state model drift), and Module E (Azure General unauthorized deployment detection). Modules D, F–G remain designed but are not yet deployable.
 
 ---
 
@@ -38,13 +40,16 @@ When fully deployed, this solution enables security teams to:
 |---------|------------------|------------|
 | Detect when AI content filter policies are removed or weakened | Configuration Drift | ARM events in `AzureActivity` (`raiPolicies/write`) |
 | Detect approved active agents with no declared guardrails | Posture Assessment | `AgentsInfo` snapshot baseline comparison |
-| Alert on unauthorized Copilot plugins added outside approved list | Configuration Drift | `CopilotActivity` plugin lifecycle events |
 | Surface shadow AI applications and app governance violations | Posture Assessment | `CloudAppEvents` behavioral heuristics |
-| Detect unauthorized AI model deployments | Audit Monitoring | `AzureActivity` (`deployments/write`) |
+| Detect unauthorized AI model deployments | Audit Monitoring | `AzureActivity` (`deployments/write`), validated against approved baseline |
+| Detect M365 Copilot agent model drift from approved binding | Configuration Drift | `CopilotActivity` observed AI model name/version vs. baseline |
 | Identify Purview AI Hub policy violations | Audit Monitoring | `OfficeActivity` (OfficeWorkload == "Purview") |
 | Flag anomalous Security Copilot session patterns | Risky Usage | `CopilotActivity` (Workload == "SecurityCopilot") |
 | Notify SOC teams via Teams adaptive cards | Incident Response | AIGS-Notify-001-TeamsAlert playbook |
 | Automatically restore diagnostic logging (approval-gated) | Incident Response | AIGS-Auto-001-RestoreDiagnostics playbook |
+
+**Roadmap (verification pending):**
+- Alert on unauthorized Copilot plugin settings changes (plugin lifecycle detection — `Operation` column not yet verified in published `CopilotActivity` schema)
 
 All findings reference their governance control ID (`AIGS-<Domain><NNN>`), baseline authority (watchlist or threshold), and evaluation source. Coverage gaps surface as **Not Configured** — a missing connector or license is never reported as compliant.
 
@@ -56,16 +61,17 @@ All findings reference their governance control ID (`AIGS-<Domain><NNN>`), basel
 |--------|--------|--------------|-----------|------|--------|
 | **A — Azure OpenAI / Foundry** | Config Drift, Audit | `AzureActivity` | Built-in (no connector required) | ✅ Native `imAuditEvent` | ✅ Reference implementation |
 | **B — Agent 365** | Posture Assessment, Config Drift | `AgentsInfo` ⚠️ Preview | Microsoft Defender XDR | N/A (inventory table) | ✅ Preview implementation |
-| **C — M365 Copilot** | Config Drift | `CopilotActivity` ⚠️ Preview | Microsoft Copilot Data Connector ⚠️ Preview | Custom parser `AIGS_CopilotActivity_Normalized` | 🔵 Designed |
+| **C — M365 Copilot** | Config Drift | `CopilotActivity` ⚠️ Preview | Microsoft Copilot (`MicrosoftCopilot`) GA | N/A — Direct-KQL (no parser) | ✅ Preview implementation |
 | **D — Defender XDR** | Posture Assessment | `CloudAppEvents` | Microsoft Defender XDR + Defender for Cloud Apps | N/A | 🔵 Designed |
-| **E — Azure General** | Audit Monitoring | `AzureActivity` | Built-in | ✅ Native `imAuditEvent` | 🔵 Designed |
+| **E — Azure General** | Audit Monitoring | `AzureActivity` | Built-in | ✅ Native `imAuditEvent` | ✅ Preview implementation |
 | **F — Microsoft Purview** | Audit Monitoring | `OfficeActivity` | Office 365 connector | Partial `imAuditEvent` | 🔵 Designed |
-| **G — Security Copilot** | Risky Usage | `CopilotActivity` ⚠️ Preview | Microsoft Copilot Data Connector ⚠️ Preview | Custom parser `AIGS_CopilotActivity_Normalized` | 🔵 Designed · Disabled by default |
+| **G — Security Copilot** | Risky Usage | `CopilotActivity` ⚠️ Preview | Microsoft Copilot (`MicrosoftCopilot`) GA | N/A — Direct-KQL (no parser) | 🔵 Designed · Disabled by default |
 
 ### Notes
 
 - **Module G is disabled by default** (`enableSecurityCopilotModule = false`). It requires a separately gated delegated-OAuth exception, Security Copilot SCU provisioning, and explicit administrator opt-in. Core solution functionality (Modules A–F) operates entirely via User-Assigned Managed Identity (UAMI) and does not depend on Module G.
 - **Preview dependencies** (marked ⚠️): `AgentsInfo` and `CopilotActivity` are in public preview. Schema may change. `AgentsInfo` availability through standalone Sentinel streaming is not explicitly documented; unified Microsoft Defender portal access is recommended. See [PREREQUISITES.md](Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/PREREQUISITES.md).
+- **Module A, C and E** are configured as follows: Module A and E use the native `AzureActivity` table; Module C uses direct-KQL queries against `CopilotActivity` without a custom parser.
 - **Module A and E** are the only modules whose primary table (`AzureActivity`) is available in all Microsoft Sentinel workspaces without additional connector configuration.
 
 ---
@@ -78,12 +84,12 @@ This solution promotes ASIM usage where official schemas exist:
 |-------|------------|---------|-------|
 | `AzureActivity` | **Native ASIM** | `imAuditEvent` / `_Im_AuditEvent` | Modules A and E (ARM management-plane events) |
 | `SigninLogs` / `AADNonInteractiveUserSignInLogs` | **Native ASIM** | `imAuthentication` / `_Im_Authentication` | Cross-module identity correlation enrichment |
-| `CopilotActivity` | **No ASIM** (Preview table) | Custom: `AIGS_CopilotActivity_Normalized` | Modules C and G (solution-specific normalization) |
+| `CopilotActivity` | **No ASIM** (Preview table) | Direct-KQL (no parser) | Module C and G (direct KQL, solution-specific queries) |
 | `AgentsInfo` | **No ASIM** | N/A — Defender XDR inventory | Module B |
 | `CloudAppEvents` | **No ASIM** | N/A | Module D |
 | `OfficeActivity` | **Partial ASIM** | `imAuditEvent` for applicable operations | Module F |
 
-> **Note on custom parsers:** `AIGS_AzureOpenAI_CL` and `AIGS_CopilotActivity_Normalized` are solution-specific normalization parsers. They are **not** ASIM parsers and do not implement any published `_Im*` schema interface. They are labeled `AIGS_*` to prevent confusion with official ASIM functions.
+> **Note on custom parsers:** The solution does not ship custom ASIM parsers. The solution includes custom KQL queries against native tables (`CopilotActivity` direct-KQL for Modules C and G). These are labeled `AIGS_*` to prevent confusion with official ASIM functions.
 
 ---
 
@@ -93,9 +99,9 @@ The full roadmap includes:
 
 | Category | Contents |
 |----------|---------|
-| Analytic Rules | 8 rules across 7 modules (Module B has 2: AIGS-PA001 + AIGS-CD002) |
+| Analytic Rules | 8 rules across 7 modules (Module A has 2: AIGS-CD001 + AIGS-AM001; Module B has 2: AIGS-PA001 + AIGS-CD002; Module C has 1: AIGS-CD003; Module E has 1: AIGS-AM001) |
 | Hunting Queries | 7 queries (one per module) |
-| Parsers | 2 custom parsers (`AIGS_AzureOpenAI_CL`, `AIGS_CopilotActivity_Normalized`) |
+| Parsers | Custom KQL queries (no ASIM-normalized parsers shipped; direct-KQL for Module C/G `CopilotActivity`) |
 | Workbooks | 1 workbook with 5 persona tabs (Executive, SOC Ops, Platform Health, Compliance Mapping, Module Coverage) |
 | Watchlists | 7 watchlist pairs (CSV + JSON metadata) |
 | Playbooks | 3 playbooks (AIGS-Notify-001-TeamsAlert, AIGS-Auto-001-RestoreDiagnostics, AIGS-Enrich-001-SecurityCopilot) |
@@ -181,4 +187,4 @@ This is a **Community** solution. Support is provided on a best-effort basis thr
 
 See [CHANGELOG.md](Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/CHANGELOG.md) and [ReleaseNotes.md](Solutions/Microsoft%20Sentinel%20-%20AI%20Governance%20Solution/ReleaseNotes.md).
 
-Current release: **v3.0.1-preview.1** — Reference batch (Module A scaffolding and documentation foundation).
+Current release: **v3.0.6-preview.1** — Module E Preview Batch (CognitiveServices unauthorized deployment detection; fail-closed baseline matching).

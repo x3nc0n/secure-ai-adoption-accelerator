@@ -1,7 +1,7 @@
 # PREREQUISITES — Microsoft Sentinel – AI Governance Solution
 
-**Solution version:** v3.0.5-preview.1
-**Last updated:** 2026-07-23
+**Solution version:** v3.0.6-preview.1
+**Last updated:** 2026-07-24
 
 ---
 
@@ -123,7 +123,6 @@ AIGS-Enrich-001-SecurityCopilot (Module G optional enrichment playbook) uses **d
 | Rule ID | Name | Table | Severity | Confidence |
 |---------|------|-------|----------|-----------|
 | `AIGS-CD001` | Content Filter Policy Removed or Weakened | `AzureActivity` | High | High (deterministic) |
-| `AIGS-AM001` | Unauthorized AI Model Deployment Detected | `AzureActivity` | High | High (deterministic) |
 
 ### Playbooks
 
@@ -313,31 +312,74 @@ as the basis for populating `AIGS_M365CopilotBaseline` before enabling drift det
 
 ## Module E — Azure General
 
-**Status:** 🔵 Designed
+**Status:** ✅ Preview implementation
 **Modules deployed by default:** Enabled (no additional connector required)
+
+### Detection Scope — Unauthorized CognitiveServices Model Deployment
+
+Module E detects **successful ARM control-plane deployments of Azure OpenAI / Azure AI Foundry model deployments that are not present in the approved baseline**. A finding surfaces when a `Microsoft.CognitiveServices/accounts/deployments/write` operation succeeds without a matching deployment name in the `AIGS_ApprovedModels` baseline.
+
+**Scope boundaries:**
+- **Supported:** `Microsoft.CognitiveServices/accounts/deployments/write` operations on `AzureActivity` with `ActivityStatusValue in~ ("Success","Succeeded")`.
+- **Not enforced (out of MVP scope):** Azure ML deployments, region/location compliance (AzureActivity contains no location), model name/version/SKU enforcement (these fields are in the ARM request-body Properties, undocumented in AzureActivity schema), deployment deletion, or auto-remediation. Analysts must manually verify deployed model identity via Azure Resource Manager.
+
+**Expected-state model:** Fail-closed inner join to `AIGS_ApprovedModels` baseline with `Status=Active`. Empty, absent, or template-only baseline yields zero findings (no false-compliance claim).
 
 ### Data Source
 
 | Item | Details |
 |------|---------|
-| **Connector** | Azure Activity Logs — built-in |
+| **Connector** | Azure Activity Logs — built-in; no additional connector required |
 | **Table** | `AzureActivity` |
-| **ASIM** | `imAuditEvent` / `_Im_AuditEvent` (native ASIM) |
-| **Verification query** | `AzureActivity \| take 1` |
+| **ASIM** | `imAuditEvent` / `_Im_AuditEvent` (native ASIM — no custom parser) |
+| **Operation exact** | `tolower(OperationNameValue) == "microsoft.cognitiveservices/accounts/deployments/write"` |
+| **Terminal status** | `ActivityStatusValue in~ ("Success","Succeeded")` |
+| **Resource identity** | `_ResourceId` ARM path: `.../providers/Microsoft.CognitiveServices/accounts/{account}/deployments/{deploymentName}` |
+| **Verification query** | `AzureActivity \| where tolower(OperationNameValue) has "cognitiveservices" and tolower(OperationNameValue) has "deployments" \| take 1` |
+
+### License Requirements
+
+| Requirement | Notes |
+|-------------|-------|
+| Azure subscription with Azure OpenAI or Azure AI Foundry resources | Required for telemetry to exist; `AzureActivity` itself requires no additional license |
+| Microsoft Sentinel (any SKU) | For rule deployment |
 
 ### Watchlists Used
 
 | Watchlist | Purpose | Key Column |
 |-----------|---------|-----------|
-| `AIGS_ApprovedModels` | Approved model deployment names and approved regions | `ItemKey` = model deployment name |
+| `AIGS_ApprovedModels` | Approved model deployment names and metadata | `ItemKey` = Sentinel watchlist search-index column (for watchlist discovery); detection KQL join key = composite data column (`AccountName + "/" + DeploymentName`) |
 
 ### Analytic Rules
 
 | Rule ID | Name | Table | Severity | Confidence |
 |---------|------|-------|----------|-----------|
-| `AIGS-AM001` | Unauthorized AI Model Deployment Detected | `AzureActivity` | High | High (deterministic ARM event) |
+| `AIGS-AM001` | Unauthorized AI Model Deployment Detected | `AzureActivity` | High | High (deterministic fail-closed baseline match) |
 
-> Note: AIGS-AM001 is shared with Module A in the detection scope. Module E includes the hunting query for AI resources provisioned outside approved regions.
+**Rule semantics:** `AIGS-AM001` runs every 1 hour, looks back 4 hours. Performs a guarded left-outer join (not inner join) between successful `deployments/write` operations and the `Status=Active` rows of `AIGS_ApprovedModels`. The join key is the composite data column (`tolower(AccountName) + "/" + tolower(DeploymentName)`). An unauthorized finding surfaces when:
+1. A successful deployment write is executed, AND
+2. The composite join key is absent from any Active baseline row (i.e., `isempty()` after the join).
+
+The guarded left-outer join pattern ensures that empty or template-only baselines (zero `Status=Active` rows) produce zero findings — this is the fail-closed design. An approval-marker column is set to `isempty(AM_ModelId)` (true when no Active baseline row matched); findings are produced only when the approval marker is true AND the watchlist is deployed. Blank AccountName or DeploymentName in a baseline row disables that row's matching capability.
+
+### Hunting Query
+
+`AIGS-Hunt-AIModelDeploymentChanges` surfaces all successful `deployments/write` operations and their extracted account/deployment names over the selected time range. Use this inventory as the baseline for populating `AIGS_ApprovedModels` before enabling unauthorized-deployment detection.
+
+### Baseline Workflow
+
+1. Run `AIGS-Hunt-AIModelDeploymentChanges` to discover observed deployments and their account/deployment name values.
+2. For each approved deployment, add a row to `AIGS_ApprovedModels` with `Status=Active`, the matching `AccountName` and `DeploymentName` values, and a `BaselineOwner`.
+3. `AIGS-AM001` will begin producing unauthorized findings on the next scheduled run for any deployments absent from the Active baseline.
+4. Analysts must manually verify each finding by inspecting the ARM deployment in Azure Portal or Azure Resource Manager to confirm the deployed model identity and any associated resources.
+
+### Known Limitations
+
+- **Model name is not queryable from AzureActivity.** Deployment name (extracted from `_ResourceId`) is a deterministic proxy only. The true deployed model family, version, and SKU live in the ARM request-body Properties, which are **not** a documented `AzureActivity` column. No rule logic can enforce model version, SKU, or model-family compliance without additional telemetry (e.g., Azure Resource Graph snapshots). Baseline matching is by deployment name only.
+- **No region enforcement.** `AzureActivity` contains no resource location field. Region compliance requires Azure Resource Graph correlation outside Sentinel KQL scope.
+- **No deletion detection.** The rule detects successful write operations; delete operations are out of MVP scope.
+- **Analysts must verify.** A finding indicates a successful deployment not in the approved baseline — it does not prove authorization. The analyst must confirm against Azure Resource Manager that the deployment is legitimate and, if not, raise the incident for remediation.
+- **Ingest latency.** AzureActivity events have typical 2–5 minute ingestion latency. The 1h/4h frequency/lookback accounts for this.
 
 ---
 
@@ -407,7 +449,7 @@ To activate Module G, all of the following must be completed:
 |------|---------|
 | **Connector** | Microsoft Copilot Data Connector ⚠️ **Preview** |
 | **Table** | `CopilotActivity` — `Workload == "SecurityCopilot"` |
-| **ASIM** | Custom: `AIGS_CopilotActivity_Normalized` (not ASIM) |
+| **ASIM** | N/A — Direct-KQL (no parser) |
 | **Verification query** | `CopilotActivity \| where Workload has "SecurityCopilot" \| take 1` |
 
 ### License Requirements
@@ -427,7 +469,7 @@ AIGS-Enrich-001-SecurityCopilot uses **delegated OAuth** (not UAMI). This is a d
 |---------|------|-------|----------|-----------|
 | `AIGS-RU001` | Anomalous Security Copilot Session Volume or Unauthorized User | `CopilotActivity` | Medium | Medium (threshold-based behavioral anomaly) |
 
-> Note: AIGS-RU001 deploys in a **disabled** state when `enableSecurityCopilotModule = false`. The `AIGS_CopilotActivity_Normalized` parser deploys regardless (zero cost) but is non-functional without the connector.
+> Note: AIGS-RU001 deploys in a **disabled** state when `enableSecurityCopilotModule = false`.
 
 ---
 

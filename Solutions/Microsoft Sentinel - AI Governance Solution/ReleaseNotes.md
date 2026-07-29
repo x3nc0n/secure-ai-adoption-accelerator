@@ -2,6 +2,25 @@
 
 ---
 
+## v3.0.6-preview.1 — Azure General Module E Batch
+
+**Release date:** 2026-07-23
+**Release type:** Preview
+**Scope:** Module E Azure General vertical slice — CognitiveServices unauthorized deployment detection with fail-closed baseline matching
+
+- Added `AIGS-AM001-UnauthorizedModelDeployment`: fail-closed baseline-matched detection of successful `Microsoft.CognitiveServices/accounts/deployments/write` operations not present in the `AIGS_ApprovedModels` baseline. Runs every 1 hour, 4-hour lookback, composite join key `AccountName/DeploymentName`, deterministic match against `Status=Active` baseline. Empty/template-only baseline yields zero findings.
+- Added `AIGS-Hunt-AIModelDeploymentChanges`: inventory of all successful deployment operations and extracted account/deployment name values. Use as discovery basis for populating `AIGS_ApprovedModels` before enabling unauthorized-deployment detection.
+- Reused `AIGS_ApprovedModels` watchlist (schema: `ItemKey,AccountName,DeploymentName,ApprovedVersion,Status,BaselineOwner,LastUpdated`; `itemsSearchKey=ItemKey`; shared with Module A; detection join key is composite `AccountName/DeploymentName`; template row only shipped).
+- Added workbook Module E tiles: deployment activity inventory and unauthorized finding discovery surface (isfuzzy-guarded, missing-table safe).
+- Rewrote PREREQUISITES Module E: documents fail-closed baseline semantics, composite join key, operator exact operation/status values, resource identity from ARM path, analyst manual verification requirement via Azure Resource Manager, and explicit scope boundaries (no region/model-version/SKU enforcement; no auto-remediation; no deletion detection; deployment-name-only matching; no request-body Properties parsing).
+- Stale "pending Trinity evidence contract" language removed. Stale "approved regions" and "model version enforcement" claims removed from documentation.
+- Connector verified GA: `Azure Activity Logs` built-in, no additional connector required.
+- Switch validator gate Module E: 16/16 checks passed (operation case, status values, fail-closed semantics, composite key, baseline guards, artifact presence, GUID registry consistency, watchlist structure, rule metadata completeness).
+
+**Design basis:** Morpheus Module E Design Gate (`morpheus-module-e-design-gate.md`). Fail-closed semantics adopted from Module C CD003 pattern (CD003 article). Multi-provider scope (Azure ML, other Azure AI providers) remains roadmap-only pending Trinity verification and operation-name discovery for those providers.
+
+---
+
 ## v3.0.5-preview.1 — M365 Copilot Module C Batch
 
 **Release date:** 2026-07-23

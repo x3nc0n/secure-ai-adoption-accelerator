@@ -151,3 +151,59 @@
 - `Solutions/Microsoft Sentinel - AI Governance Solution/Playbooks/AIGS-Auto-001-RestoreDiagnostics/readme.md` (revised)
 - `Solutions/Microsoft Sentinel - AI Governance Solution/Playbooks/AIGS-Notify-001-TeamsAlert/readme.md` (revised)
 - `.squad/agents/tank/history.md` (this file, work log updated)
+
+### 2026-07-23 — Module E Packaging Gate: AIGS-AM001 Promotion & 3.0.6 Release
+
+**Scope:** Promote AM001 from guids.json `_roadmap` to resolved; wire manifest; regenerate package 3.0.6.
+**Authorized changes:** `guids.json`, `Data/Solution_AIGovernance.json`, `Package/` (generated).
+**Read inputs:** morpheus-module-e-contract-acceptance.md, neo-module-e-content-implementation.md, switch-module-e-validation-gates.md, morpheus-documentation-consistency.md.
+
+#### Changes
+
+| File | Change |
+|------|--------|
+| `guids.json` | `AIGS-AM001-UnauthorizedModelDeployment` moved from `_roadmap.analyticRules` → top-level `analyticRules`; `status` → `"resolved"` |
+| `Data/Solution_AIGovernance.json` | `"Analytic Rules/AIGS-AM001-UnauthorizedModelDeployment.yaml"` appended as 6th rule; `Version` auto-bumped `3.0.5` → `3.0.6` by generator write-back |
+| `Package/3.0.6.zip` | NEW — generated release archive (48,992 bytes) |
+| `Package/mainTemplate.json` | Regenerated — 18 resources (1 contentPackage, 13 contentTemplates, 4 Watchlists) |
+| `Package/createUiDefinition.json` | Regenerated |
+| `Package/testParameters.json` | Regenerated |
+| `Package/3.0.5.zip` | REMOVED (obsolete) |
+| `Workbooks/WorkbooksMetadata.json` | No change (consistent with Module B/C precedent) |
+
+#### Generator mechanics
+Command: `createSolutionV3.ps1 -VersionMode local -VersionBump patch`
+Junction: `Tools` → `..\Azure-Sentinel\Tools` created pre-run, removed post-run (no repo files created).
+Generator auto-incremented 3.0.5 → 3.0.6 and wrote back to Solution_AIGovernance.json.
+
+#### Validation results
+
+| Validator | Result | Detail |
+|-----------|--------|--------|
+| Test-AIGovernanceSource.ps1 | ✅ PASS | 15 checks, 119 passed, 0 warnings, 0 failures |
+| Test-ModuleEChecks.ps1 | ✅ PASS | 16 assertions, 16 passed |
+| Test-ModuleCChecks.ps1 | ✅ PASS | 10 assertions, 10 passed |
+
+Check 13 (roadmap gate): `PASS  14 roadmap path(s) checked — none deployed prematurely`
+Package shape (Check 12): `valid ARM template with 18 resource(s)` — 1 pkg + 13 templates + 4 Watchlists.
+AM001 contentId: `_analyticRulecontentId6 = 752bbac1-66ff-4bba-93f7-46a57bbd793d`
+`_solutionVersion = 3.0.6`; docs = `3.0.6-preview.1` (consistent per convention).
+
+#### Key learnings
+
+- V3 generator resolves `commonFunctions.ps1` via `$repositoryBasePath + "Tools/..."` relative to the `Solutions/` parent dir. When the solution repo differs from Azure-Sentinel, use a Windows directory junction to satisfy the lookup without copying files into source control. Remove junction immediately after generation.
+- Generator auto-increments version AND writes back to `Data/Solution_AIGovernance.json`. Leave the manifest at the pre-bump version before calling with `-VersionBump patch`; do not pre-set the target version manually or the output version will be N+1.
+- Check 13 (roadmap path gate) is the authoritative signal that a `_roadmap` entry has been deployed and must be promoted. No file at a roadmap path ⇒ gate passes cleanly.
+
+### 2026-07-24 — Module E 3.0.6 Regeneration (Hunt Correction)
+
+**Trigger:** Morpheus reviewer-authorized hunt correction: `ActivityStatusValue in~ ("Success","Succeeded")`
+(was single-value). No other source changes; same-version regeneration required.
+
+**Convention:** Manifest reset `3.0.6` → `3.0.5` before generator invocation so patch-bump produces `3.0.6` (not `3.0.7`). Junction created/removed as before.
+
+**Result:** 3.0.6.zip replaced (49,057 bytes); mainTemplate/createUiDefinition/testParameters regenerated. Package shape unchanged: 18 resources, 13 templates, 4 Watchlists. `_solutionVersion = 3.0.6`. Hunt correction confirmed embedded (4 occurrences of escaped `in~("Success","Succeeded")` in mainTemplate.json).
+
+**Validators:** Test-AIGovernanceSource.ps1 15/15 PASS (119 passed, 0 warnings, 0 failures); Test-ModuleEChecks.ps1 16/16 PASS; Test-ModuleCChecks.ps1 10/10 PASS.
+
+**Key learning:** Same-version regeneration pattern = reset manifest to N-1, run `-VersionBump patch`, generator writes back N. Consistent with B/C precedent.

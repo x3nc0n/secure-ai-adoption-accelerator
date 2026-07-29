@@ -102,6 +102,14 @@
       "owner": "neo",
       "status": "resolved",
       "file": "Analytic Rules/AIGS-CD003-CopilotAgentModelDrift.yaml"
+    },
+    "AIGS-AM001-UnauthorizedModelDeployment": {
+      "guid": "752bbac1-66ff-4bba-93f7-46a57bbd793d",
+      "displayName": "[AIGS] Audit Monitor - Unauthorized AI Model Deployment",
+      "module": "E",
+      "owner": "neo",
+      "status": "resolved",
+      "file": "Analytic Rules/AIGS-AM001-UnauthorizedModelDeployment.yaml"
     }
   },
   "huntingQueries": {
@@ -179,14 +187,6 @@
       }
     },
     "analyticRules": {
-      "AIGS-AM001-UnauthorizedModelDeployment": {
-        "guid": "752bbac1-66ff-4bba-93f7-46a57bbd793d",
-        "displayName": "[AIGS] Audit Monitor - Unauthorized AI Model Deployment",
-        "module": "E",
-        "owner": "neo",
-        "status": "unresolved — KQL authoring pending neo",
-        "file": "Analytic Rules/AIGS-AM001-UnauthorizedModelDeployment.yaml"
-      },
       "AIGS-AM002-PurviewAIHubPolicyViolation": {
         "guid": "0cb9be3a-0c99-47be-b6bf-ab2f8c4032b2",
         "displayName": "[AIGS] Audit Monitor - Purview AI Hub Policy Violation",

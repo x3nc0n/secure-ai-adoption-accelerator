@@ -7,6 +7,74 @@
 
 ## Revision History
 
+### 2026-07-23 — Documentation Consistency Corrections (Morpheus)
+
+**Task:** Correct current-state documentation to match deployed package 3.0.5 / preview label 3.0.5-preview.1 and Modules A–C shipped status. Ensure no stale `3.0.1`, Module C Preview/custom-parser, or plugin-lifecycle-as-shipped claims remain.
+
+**Files modified:**
+- `README.md` — 9 corrections: version strings (3.0.3 → 3.0.5 throughout), Module C status (🔵 Designed → ✅ Preview implementation), Module E status added, Module C ASIM (custom parser → N/A direct-KQL), Module C connector (Preview → GA), Customer Outcomes reorganized (plugin lifecycle → roadmap), Solution Contents updated (parser counts, rule attribution), Release History line updated.
+- `Solutions/Microsoft Sentinel - AI Governance Solution/PREREQUISITES.md` — 6 corrections: Module A rules list (removed AIGS-AM001), Module E status (🔵 Designed → ✅ Preview research/implementation phase), Module E watchlist purpose (removed "approved regions"), Module E stale "shared with Module A" note removed, Module G ASIM (custom parser → N/A direct-KQL), Module G parser-deploy note removed.
+
+**Decision document written to** `.squad/decisions/inbox/morpheus-documentation-consistency.md`.
+
+**Verification:** All searches for stale claims (3.0.[1-3] version strings, Module C Designed status, AIGS_CopilotActivity_Normalized attributed to Module C, plugin lifecycle as shipped, approved regions in Module E, AM001 shared claim) returned zero matches. Documentation now reflects deployed state.
+
+**Key learnings:**
+1. **Version drift compounds across releases.** README lagged 2 releases. Header, status sections, and release-history line all require coordinated update when a new batch ships — a single version string refresh is insufficient.
+2. **Module status icons are high-visibility signals.** Gap between 🔵 Designed and ✅ Preview is the difference between spec-only and code-shipped. Stale icons invite deployment of incomplete modules and mislead stakeholders on gating requirements.
+3. **Connector GA vs. Preview distinction is critical.** Module C's connector changed mid-cycle; docs must reflect published status, not wishlist status. Affects license/deployment prerequisites and support maturity promises.
+4. **"Shared" ownership language creates accountability ambiguity.** Saying AM001 is "shared with Module A" was imprecise and led to it appearing in Module A's rule list even after moving to Module E. Explicit single ownership ("Module E owned") is clearer. If cross-module rule reuse is ever needed, list once under the owner with explicit "also used by Module X" note.
+5. **Parser non-existence must be stated, not implied.** Saying "no custom parser dependency" is clearer than "direct-KQL with no parser mentioned." Explicit negation ("N/A — Direct-KQL (no parser)") removes ambiguity. Implied absence can be misread as "coming later."
+6. **Region/location claims require explicit telemetry proof.** The "approved regions" language in Module E was unsupported because AzureActivity contains no location data. Telemetry-unsupported claims are high-priority doc cleanup risks; they often get copied into KQL and cause silent data gaps.
+
+**Status:** Complete. Ready for release with v3.0.5-preview.1 (Module C batch). Module E documentation updates (AM001 rule, Trinity evidence contract, version bump to 3.0.6-preview.1) deferred pending implementation gates.
+
+### 2026-07-23 — Module E Implementation Finalization: Documentation Completion (Morpheus)
+
+**Task:** Finalize documentation for now-implemented, validator-approved Module E content. Update README, PREREQUISITES, CHANGELOG, and ReleaseNotes for 3.0.6-preview.1 release.
+
+**Files modified:**
+- `README.md` — 6 corrections: version strings (3.0.5 → 3.0.6), Module E status (research/design → Preview implementation), release statement and history updated, Solution Contents rule attribution includes Module E.
+- `Solutions/Microsoft Sentinel - AI Governance Solution/PREREQUISITES.md` — Complete Module E section rewrite: new Detection Scope subsection (fail-closed semantics, scope boundaries), expanded Data Source (operation exact, terminal status, ARM path), Watchlist semantics (ItemKey vs. composite join key), full Rule semantics (frequency, lookback, join behavior, baseline guards), Baseline Workflow (4-step discovery + population), Known Limitations (7 explicit limitations including analyst manual ARM verification).
+- `Solutions/Microsoft Sentinel - AI Governance Solution/CHANGELOG.md` — New `[3.0.6-preview.1]` section: Added (rule, hunt, watchlist, workbook, PREREQUISITES rewrite), Changed (module inventory, health ASIM), Removed (stale pending/regions/model-version), Fixed (doc drift). Links updated to 3.0.6-preview.1.
+- `Solutions/Microsoft Sentinel - AI Governance Solution/ReleaseNotes.md` — New `v3.0.6-preview.1 — Azure General Module E Batch` section with rule semantics, hunt workflow, watchlist reuse, workbook, PREREQUISITES rewrite, stale-claim removal, validator results. Prior releases preserved (cumulative).
+- `.squad/decisions/inbox/morpheus-documentation-consistency.md` — Updated with final Module E completion record.
+
+**Verification:** All stale-language searches returned zero matches (pending Trinity, approved regions, model-version enforcement, anti-join without context, 3.0.5-preview as current, Module E research status). All content counts updated. Implementation verified against AIGS-AM001 delivery (GUID 752bbac1-66ff-4bba-93f7-46a57bbd793d): fail-closed semantics, composite join key, CognitiveServices-only scope, analyst manual ARM verification, no region/model-version enforcement.
+
+**Key learnings:**
+1. **Fail-closed patterns are reusable templates.** Module C CD003 pattern (guarded leftouter + baseline-presence gate) adopted for Module E AM001 — eliminates fail-open risk and provides template for future modules.
+2. **Analyst manual verification is a documented requirement, not a limitation.** Explicit "analysts must verify via ARM" sets correct expectations and is clearer than implied.
+3. **Composite join keys require explicit documentation.** "ItemKey vs. detection join key" distinction surfaces the difference between search-index and data columns—often conflated, highest-risk source of silent bugs.
+4. **Scope boundaries must be explicit, not implied.** "CognitiveServices only" + listing all out-of-scope (Azure ML, region, model-version, SKU, Properties, deletion, auto-remediation) prevents feature creep and misunderstood commitments.
+5. **Stale "pending" language must be completely removed.** Once implementation is complete and validator-approved, hedging should be cut entirely — it undermines stakeholder confidence.
+
+**Status:** Complete. Modules A–E have complete, honest documentation. Ready for release as 3.0.6-preview.1 Module E Preview Batch.
+
+**Decision written to** `.squad/decisions/inbox/morpheus-module-e-design-gate.md`. **Verdict: APPROVE Trinity research start; HOLD Neo KQL until evidence contract accepted.**
+
+- **Scope bounded to CognitiveServices.** MVP = `Microsoft.CognitiveServices/accounts/deployments/write`
+  + `Success` on `AzureActivity` only. Azure ML / other providers are roadmap — their operation
+  names are unverified and must not be invented. No region/location claim (AzureActivity has no
+  location; ResourceGroup is not a region proxy; region needs Azure Resource Graph).
+- **Hunt reused as-is; rule is different.** `AIGS-Hunt-AIModelDeploymentChanges` (left-outer,
+  surface-all-when-absent) is correct for a hunt but its behavior MUST NOT be copied into the rule.
+  `AIGS-AM001` must be **fail-closed** (CD003 pattern): inner/guarded-absence join to `Status=Active`
+  `AIGS_ApprovedModels`; empty/Template baseline ⇒ zero findings; no bare `leftanti`/`!in`.
+- **Model name is not observable.** Deployment name (from `_ResourceId`) is a **proxy only**; true
+  model/version/SKU live in the ARM request-body Properties, undocumented in AzureActivity. Join key
+  = composite `AccountName/DeploymentName`. Search key stays `ItemKey`; join key is a data column.
+- **AM001 identity valid.** GUID `752bbac1-...793d` unchanged; graduate from `_roadmap` to resolved.
+- **Cross-module ownership corrected.** AM001 is **Module-E-owned**, not "shared with Module A";
+  PREREQUISITES currently mis-lists it under Module A and carries a stale "approved regions" hunt claim.
+- **README drift surfaced (2 releases behind).** Header/status/release-history still say v3.0.1/v3.0.3
+  while package is 3.0.5 and Module C shipped. Module C mislabeled `🔵 Designed` + "custom parser
+  AIGS_CopilotActivity_Normalized" + "plugin lifecycle" — all stale; Module C MVP is direct-KQL
+  model-binding drift, no parser. This batch must close the README gap, not just add Module E.
+- **Gate discipline:** Neo blocked on Trinity's written+accepted AzureActivity evidence contract
+  before any AM001 KQL. Switch fixtures must include anti-join, no-Success-filter, region, and
+  invented-column fail cases plus a fail-closed empty-baseline assertion.
+
 ### 2026-07-23 — Module C Design Gate: Observed-State MVP over Operation Assumption (Morpheus)
 
 **Decision written to** `.squad/decisions/inbox/morpheus-module-c-design-gate.md`. **Verdict: APPROVE (scoped MVP).**
@@ -40,6 +108,35 @@ evidence gap into a bounded, deterministic, high-confidence control.
 **Key learning:** Separate "documented on an operations reference page" from "materialized as a
 queryable column in the ingested table." The two are routinely conflated for preview connectors
 and are the highest-risk source of silently-wrong KQL.
+
+### 2026-07-24 — Module E Review Revision: Hunt Terminal Filter + PREREQUISITES Clarifications (Morpheus, Acting for Neo)
+
+**Task:** Apply reviewer-required fixes to hunt and PREREQUISITES for Module E. Reviewer rejection cycle: hunt terminal filter accuracy, ItemKey/join-key distinction, leftouter semantics clarity. Neo locked out; Morpheus performing revision.
+
+**Files modified:**
+- `Hunting Queries/AIGS-Hunt-AIModelDeploymentChanges.yaml` — 3 corrections: (1) Description updated to reference both "Success" and "Succeeded" terminal values (live-proven telemetry), (2) Query comments clarified for dual-value acceptance and explicit join-key distinction (ItemKey vs. composite data column), (3) Filter line changed: `ActivityStatusValue =~ "Success"` → `ActivityStatusValue in~ ("Success","Succeeded")` — reduces false-zero suppression from transient states (Start, Accepted).
+- `Solutions/Microsoft Sentinel - AI Governance Solution/PREREQUISITES.md` — 4 corrections: (1) Version header line 3: `v3.0.5-preview.1` → `v3.0.6-preview.1`; "Last updated": 2026-07-23 → 2026-07-24, (2) Watchlists Used: ItemKey clarified as "Sentinel watchlist search-index column (for discovery)"; detection join key clarified as "composite data column (`AccountName + "/" + DeploymentName`)", (3) Rule semantics complete rewrite: replaced imprecise "inner join" with accurate "guarded left-outer join (not inner join)" pattern; added explicit join key specification; added `isempty()` absence detection logic; added approval-marker gate explanation; clarified fail-closed design (empty/template-only baseline → zero findings); added blank AccountName/DeploymentName disablement note.
+- `.squad/decisions/inbox/morpheus-module-e-review-revision.md` — Created with detailed decision record, verification results, corrections summary, validator assertions.
+
+**Verification:** Source validator (all 15 checks): **PASSED** (117 checks, 0 failures, 0 warnings). Critical validations:
+- ✅ Hunt YAML parsed; terminal status set both values accepted
+- ✅ PREREQUISITES version line reads `v3.0.6-preview.1`
+- ✅ Watchlist ItemKey correctly identified as search-index column
+- ✅ Module E evidence-contract gates all passed (Trinity v1 validation)
+- ✅ Fail-closed guard and approval-marker pattern verified against content
+
+**Validator alert:** Package-generation mismatch may persist until Tank regenerates with `createSolutionV3.ps1 -VersionMode local -VersionBump patch`. Source validator has passed; package generation is a deployment-phase gate (not a blocker). Hunt KQL change and PREREQUISITES clarification confirmed functionally correct; manifest artifacts may require Tank regeneration to reflect hunt YAML changes.
+
+**Key learnings:**
+1. **Live-proven telemetry values are authoritative.** Hunt initial design captured "Success" only; production telemetry proved "Succeeded" also terminal. Both must be accepted case-insensitively; single-literal filters create false-zero gaps.
+2. **ItemKey vs. detection join key is the critical semantic distinction.** ItemKey = Sentinel watchlist search-index column (UI/discovery); detection join key = KQL data columns (rule/hunt detection logic). Conflating these creates silent data gaps and cross-account collision risks. Documentation must be explicit.
+3. **"Inner join" vs. "leftouter" distinction is non-negotiable.** Inner join implies symmetric match requirement (both tables' presence necessary); guarded leftouter means outer table always matched, inner table may be absent (absence case handled by `isempty()` gate). The wrong join type inverts the fail-closed semantics.
+4. **Approval-marker gate + empty-baseline guard are reusable fail-closed pattern.** When a baseline watchlist is absent or contains only Template rows (zero Active rows), the join produces zero matches; `isempty()` gate forces zero findings. This pattern has proven reliable for CD003 (Module C) and AM001 (Module E) — documented and ready for adoption by future modules (CD005, PA001, etc.).
+5. **Baseline-seeding hunt behavior is preserved across terminal-filter change.** Hunt uses left-outer with surface-all-when-absent behavior (when watchlist missing, all events surface for baseline population); rule uses guarded leftouter with fail-closed behavior (when watchlist missing/empty, zero findings). This is intentional and correctly documented: hunts are discovery tools; rules are compliance gatekeepers.
+
+**Status:** Complete. Hunt and PREREQUISITES now accurately reflect live-proven telemetry contract, critical semantic distinctions, and fail-closed design. Ready for Tank package regeneration and production deployment. All reviewer advisories resolved.
+
+**Decision written to** `.squad/decisions/inbox/morpheus-module-e-review-revision.md`. **Verdict: APPROVED — all fixes verified.**
 
 ## Revision History
 
@@ -265,3 +362,27 @@ Content Hub publication, upstream PR, production deployment, SCU provisioning, m
 - Deterministic GUIDs (UUIDv5) prevent drift between builds and environments — critical for reproducible Sentinel solution packaging.
 - Approval workflows must fail-safe: timeout should escalate, never auto-approve.
 - Lab/validation cost guardrails prevent accidental spend, especially for consumption-based services like Security Copilot SCUs.
+
+### 2026-07-23 — Module E Telemetry Acceptance Gate (AIGS-AM001) — ACCEPT
+
+**Task:** Hard acceptance gate for Trinity v2 telemetry contract before Neo authors AM001 KQL.
+
+**Independent live verification (isolated az config, tenant Spava Corp, workspace law-sc-westus2):**
+- ARM Operations API confirms literal `Microsoft.CognitiveServices/accounts/deployments/write` (read/write/delete). This proves the RBAC/ARM operation — distinct from proving the Activity Log OperationNameValue.
+- Live `AzureActivity` proves the OperationNameValue is emitted as `MICROSOFT.COGNITIVESERVICES/ACCOUNTS/DEPLOYMENTS/WRITE` (uppercase) — case-insensitive match mandatory. For that op: Success=193, Start=219, Failure=26.
+- Table-wide status values include BOTH `Success` (49096) and `Succeeded` (408) — Succeeded is a real ARM terminal-success value.
+- 193 success rows: `_ResourceId`/`Caller`/`CallerIpAddress` 100% populated; deployment name parsed on 191/193 (2 account-level writes) — rule must guard `isnotempty(DeploymentName)`.
+
+**Key rulings (bound in acceptance contract, supersede looser v2 wording):**
+- Terminal-success filter = case-insensitive SET `in~ ("Success","Succeeded")` — justified by official docs + live presence; strictly safe (both terminal, excludes transient Start/Accept).
+- Join key = COMPOSITE `tolower(AccountName)+"/"+tolower(DeploymentName)`, NOT deployment-name-only. Deployment names are unique only within an account; deployment-only join is a false-negative vector.
+- Fail-closed = guarded `leftouter` + `not(IsApproved)` under `ActiveBaselineCount > 0` scalar. Bare `leftanti`/`!in` prohibited (validator + design gate).
+- MITRE tactics/techniques OMITTED — governance/compliance finding, not attack detection. Severity High/High retained.
+- Foundry coverage scoped to CognitiveServices-provider accounts only; ML-hub Foundry excluded.
+- Accepted with 4 non-gating Trinity doc corrections (latency/RBAC-catalog overclaim remnants, ASIM checkmark, terminal-success set, Foundry scoping).
+
+**Learnings:**
+- A successful live workspace query can convert an evidence gap into verified fact — I closed the exact gap Trinity honestly reported (her query failed; the isolated az config + `@file.kql` to preserve inner quotes worked; `az monitor log-analytics query` via variable strips inner double-quotes → SEM0062).
+- ARM Resource Provider Operations API proves the operation/RBAC name; only a live `AzureActivity` query proves the Activity Log `OperationNameValue` literal + casing. Keep these two claims separate.
+- Distinct-value live queries are cheap and high-leverage: they settled Success-vs-Succeeded and the account-level-write edge case that pure documentation could not.
+- Composite (account+deployment) keys beat name-only keys wherever the child name is only locally unique — a recurring fail-closed correctness pattern for watchlist joins.

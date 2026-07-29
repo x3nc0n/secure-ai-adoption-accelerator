@@ -299,5 +299,86 @@ empty-property issues unrelated to Module C content.
 - **AIGS-PA002 was mis-assigned module C**: It is an Azure OpenAI content-filter posture rule, naturally
   belonging to module A. Reassigned in guids.json _roadmap (GUID/path preserved).
 
+
+---
+
+## Session: 2026-07-23 — Module E Implementation (AIGS-AM001 Unauthorized Model Deployment)
+
+**Objective:** Author AIGS-AM001 analytic rule, fix hunt comment, add Module E workbook surfaces.
+Per controlling contracts: morpheus-module-e-design-gate, trinity-module-e-telemetry-contract v2,
+morpheus-module-e-contract-acceptance (FINAL AUTHORITY), switch-module-e-validation-gates.
+
+### What Was Built
+
+1. **`AIGS-AM001-UnauthorizedModelDeployment.yaml`** (GUID `752bbac1-66ff-4bba-93f7-46a57bbd793d`):
+   Fail-closed scheduled analytic rule. Detects successful CognitiveServices deployment writes
+   absent from AIGS_ApprovedModels Active baseline. Pattern: materialize watchlist → toscalar
+   gate `ActiveBaselineCount > 0` → leftouter join on composite
+   `strcat(tolower(AccountName),"/",tolower(DeploymentName))` → `not(IsApproved)` where gate.
+   Deduplication: `arg_max(TimeGenerated,*)` by ObservedKey before join. Terminal-status filter:
+   `ActivityStatusValue in~ ("Success","Succeeded")`. `isnotempty(DeploymentName)` guard for
+   account-level writes. queryFrequency: 1h, queryPeriod: 4h. Severity/Confidence: High/High.
+   tactics: [] (MITRE omitted — governance finding). Response: PB-NOTIFY-01 only.
+   Entity mappings: Account (Caller/FullName), IP (CallerIpAddress/Address),
+   AzureResource (_ResourceId/ResourceId). ASIM: imAuditEvent native (no custom parser).
+
+2. **`AIGS-Hunt-AIModelDeploymentChanges.yaml`** (comment-only F10 fix):
+   Fixed misleading "ModelId (searchKey)" comment. Now clearly states:
+   - `ItemKey` = Sentinel search-index column (not the join key)
+   - Detection join key = data columns `DeploymentName` (hunt) or composite `AccountName/DeploymentName` (AM001 rule)
+   Watchlist schema comment updated to lead with ItemKey.
+   No KQL logic change; leftouter + WatchlistDeployed surface-all-when-absent behavior preserved.
+
+3. **`AIGovernanceSolution.json`** (workbook):
+   - Module E maturity `GA` → `Preview` in exec-coverage, modules-inventory, health-modules datatables
+   - soc-modE-header: changed from warning style to success; updated text to distinguish packaged hunt
+     (left-outer, seeding) from new scheduled rule (fail-closed, 1h/4h)
+   - soc-hunt-deployments: removed "not authored" stale comment; added `in~` terminal-status filter;
+     added isnotempty guard; clarifies hunt is distinct from AM001 scheduled rule
+   - Replaced soc-am001 tile (broken KQL using `has`, `ActivityStatus`, `Resource`) with:
+     (a) `soc-am001-alerts`: SecurityAlert history tile for AM001 alerts
+     (b) `soc-am001`: Fail-closed workbook view mirroring AM001 rule logic exactly
+   - compliance-mcsb: AIGS-AM001 evidence status updated for both AM-2 and AM-4 rows
+   - compliance-nist: AIGS-AM001 evidence status updated for GOVERN 4.1
+   - modules-inventory Module E: RuleCount 0→1, Maturity GA→Preview, ControlIDs updated,
+     BatchStatus updated to reflect AM001 deployed
+   - Module Coverage tab: Added Module E header, AIGS_ApprovedModels baseline inventory tile,
+     recent deployment inventory tile (3 new items after modules-copilot-drift)
+
+### Validation Results
+
+- **Production validator (Test-AIGovernanceSource.ps1):** 15 checks, 114 passes, 0 warnings, 1 failure
+  - FAIL (Check 13): guids.json roadmap entry — EXPECTED Tank action (promote AM001 from
+    `_roadmap.analyticRules` to `analyticRules`, status `resolved`). Not Neo-owned.
+  - Check 15 (Module E): All E7a–E7e sub-checks PASS for AIGS-AM001 and all AzureActivity files.
+- **Module E regression (Test-ModuleEChecks.ps1):** Pre-existing runtime failure in Switch-owned
+  DO NOT EDIT script. Unrelated to Neo content — parser succeeds, runtime fails on unicode `→`
+  in Assert-Contains labels in this environment. Switch must resolve.
+
+### Key Learnings
+
+- **Workbook edit tool JSON string caveat:** The `edit` tool's old_str ending mid-way through a
+  JSON string value (all on one line) causes the continuation to be left dangling. Always match
+  COMPLETE structural units — never split a one-line JSON string value across old_str and what
+  follows. Fix: PowerShell raw-string `Replace()` to repair orphaned JSON fragments.
+
+- **Fail-closed pattern for "absence detection":** The module E rule uses a different fail-closed
+  pattern from modules A/B/C. Rather than `kind=inner` (which would show nothing when baseline has
+  approved entries), AM001 uses `leftouter` + guarded absence to DETECT what's NOT in the baseline.
+  The guard (`ActiveBaselineCount > 0`) is essential to prevent fail-open when baseline is empty.
+  The skill SKILL.md's "Required Pattern: inner join" covers the presence case; for absence detection,
+  the guarded leftouter + not(IsApproved) pattern is the correct analogous pattern.
+
+- **Deduplication before join:** Adding `summarize arg_max(TimeGenerated,*) by ObservedKey` BEFORE
+  the leftouter join keeps one finding per composite account/deployment per evaluation window.
+  This prevents alert storms for repeated successful writes of the same deployment.
+
+- **`leftanti` in comments is safe:** Check 15 E7c-i strips comments before checking; `leftanti`
+  in a prohibition comment does not trigger the check. Confirmed by validator passing Check 15.
+
+- **guids.json / manifest are Tank gates:** Creating the rule file causes Check 13 to fail until
+  Tank promotes the guids.json entry. This is expected and documented. Do not promote guids.json
+  as Neo — it's explicitly Tank-owned.
+
 ### Decision Filed
-`.squad/decisions/inbox/neo-module-c-implementation.md`
+`.squad/decisions/inbox/neo-module-e-content-implementation.md`

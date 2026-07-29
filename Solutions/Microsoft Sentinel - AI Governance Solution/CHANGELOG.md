@@ -9,6 +9,28 @@ Version numbers follow the V3 ARM contentPackages convention: `Version` in the s
 
 ---
 
+## [3.0.6-preview.1] — 2026-07-23
+
+### Added
+- Module E Azure General Preview vertical slice: AIGS-AM001 (unauthorized deployment), AIGS-Hunt-AIModelDeploymentChanges, and AIGS_ApprovedModels watchlist (shared with Module A).
+- Workbook Module E tiles: deployment activity inventory and unauthorized finding surfaces (isfuzzy-guarded, missing-table safe).
+- PREREQUISITES Module E rewrite: fail-closed baseline matching, ARM operation verification, composite deployment-name join key, no region/model-version/SKU enforcement, analyst ARM verification requirement, and scope boundaries explicitly documented.
+
+### Changed
+- Module Inventory datatable updated: Module E BatchStatus, ControlIDs, WatchlistDependency, and ControlCount reflect new content.
+- Module Health ASIM table: verified AzureActivity native ASIM `imAuditEvent` for Module E.
+- Solution Contents: 8 rules now includes Module E AIGS-AM001 attribution (previously showed "Module A has 2" without clarifying Module E shares rule); hunt count remains 7 (one per module).
+
+### Removed
+- Stale "pending Trinity evidence contract" language from Module E documentation (evidence contract now accepted; rule implemented and validator-approved).
+- Stale "approved regions" language from Module E watchlist purpose (region enforcement unsupported by AzureActivity schema).
+- Stale "hunting query for AI resources provisioned outside approved regions" claim (region enforcement out of scope).
+
+### Fixed
+- Module E documentation drift: status corrected from research/in-progress to Preview implementation; rule semantics, baseline workflow, and known limitations now documented with authoritative accuracy.
+
+---
+
 ## [3.0.5-preview.1] — 2026-07-23
 
 ### Added
@@ -72,6 +94,7 @@ Version numbers follow the V3 ARM contentPackages convention: `Version` in the s
 | `Fixed` | Bug fixes |
 | `Security` | Security-related changes |
 
-[Unreleased]: ../../compare/v3.0.5-preview.1...HEAD
+[Unreleased]: ../../compare/v3.0.6-preview.1...HEAD
+[3.0.6-preview.1]: ../../releases/tag/v3.0.6-preview.1
 [3.0.5-preview.1]: ../../releases/tag/v3.0.5-preview.1
 [3.0.1-preview.1]: ../../releases/tag/v3.0.1-preview.1

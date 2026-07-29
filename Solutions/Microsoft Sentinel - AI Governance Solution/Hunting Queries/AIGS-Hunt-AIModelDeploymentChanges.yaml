@@ -4,6 +4,7 @@ description: |
   Returns successful model deployment write operations on Microsoft.CognitiveServices accounts
   over the selected lookback period, cross-referenced against the AIGS_ApprovedModels watchlist.
   Flags deployments where the deployment name is not present in the approved models baseline.
+  Accepts both "Success" and "Succeeded" terminal status values (live-proven telemetry).
 
   LOCATION VALIDATION LIMITATION: AzureActivity does not contain resource location (region).
   Region enforcement is not possible from AzureActivity alone and requires Azure Resource Graph
@@ -49,12 +50,17 @@ tags:
 query: |
   // ASIM: imAuditEvent — native (AzureActivity → imAuditEvent Audit Event schema)
   // Control: AIGS-AM001 (reference hunt)
-  // Data Contract: AzureActivity | CognitiveServices deployments/write (Success only)
+  // Data Contract: AzureActivity | CognitiveServices deployments/write (Success or Succeeded)
   //   ARM operations targeted:
   //     microsoft.cognitiveservices/accounts/deployments/write
-  //   ActivityStatusValue == "Success" — avoids noise from Start/Accepted transient states
+  //   ActivityStatusValue in~ ("Success","Succeeded") — accepts both live-proven terminal values
+  //     to avoid noise from Start/Accepted transient states.
   // Watchlist (optional): AIGS_ApprovedModels — approved model names and versions
-  //   DeploymentName in watchlist = the approved deployment name; ModelId = model family name
+  //   ItemKey = Sentinel watchlist search-index column (not used as the join key in this hunt).
+  //   Detection join key = data column DeploymentName (this hunt). AIGS-AM001 analytic rule uses
+  //     composite AccountName/DeploymentName as the join key to prevent gpt-4o approved in
+  //     account A from masking gpt-4o in account B.
+  //   ModelId = model family name for reference; not observable from AzureActivity alone.
   //   Graceful degradation: if watchlist absent, all successful deployment events are surfaced
   // CAVEAT: Model name is extracted from the ARM deployment resource path (deployment name
   //   often but not always matches the model family name). Analysts should verify the actual
@@ -65,8 +71,10 @@ query: |
   let LookbackPeriod = 14d;
   let DeployOp = "microsoft.cognitiveservices/accounts/deployments/write";
   // Load AIGS_ApprovedModels baseline; returns empty result if watchlist not deployed
-  // Watchlist schema (Tank-owned JSON metadata): ModelId (searchKey), DeploymentName, AccountName,
-  //   ResourceGroupName, SubscriptionId, ApprovedVersion, MaxCapacityTPM, Region, Status, BaselineVersion
+  // Watchlist schema (Tank-owned JSON metadata): ItemKey (Sentinel search-index column),
+  //   DeploymentName, AccountName, ModelId, ResourceGroupName, SubscriptionId,
+  //   ApprovedVersion, MaxCapacityTPM, Region (reference only; not a filter column),
+  //   Status, BaselineVersion, LastUpdated
   // Note: Region column is in the watchlist schema for documentation; NOT used for filtering here
   //   because AzureActivity does not contain resource location data.
   let ApprovedModels = materialize(
@@ -83,7 +91,7 @@ query: |
   AzureActivity
   | where TimeGenerated >= ago(LookbackPeriod)
   | where tolower(OperationNameValue) == DeployOp
-  | where ActivityStatusValue =~ "Success"
+  | where ActivityStatusValue in~ ("Success","Succeeded")
   | extend
       // Extract account name and deployment name from ARM resource path
       // Path: .../providers/Microsoft.CognitiveServices/accounts/{acct}/deployments/{deploymentName}
